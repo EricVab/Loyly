@@ -1,0 +1,503 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Stamina Counters (Modular POC)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root{
+      --w: 320px;
+      --h: 14px;
+    }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 20px; }
+    .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .stack { display: grid; gap: 6px; margin-bottom: 20px; }
+    .bar-container { width: var(--w); height: var(--h); border: 1px solid #000; position: relative; background: #eee; }
+    .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); }
+    .npc { margin-top: 10px; }
+    .tag { font-size: 12px; opacity: .7; }
+    button { padding: 6px 10px; cursor: pointer; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .right-buttons { display: inline-flex; gap: 8px; margin-left: 10px; flex-wrap: wrap; }
+    .muted { color: #b00; font-weight: 600; }
+    .panel { padding: 8px 10px; border: 1px dashed #aaa; background: #fafafa; margin-top: 12px; }
+    .small { font-size: 12px; }
+    .section-header { display:flex; gap:12px; align-items:baseline; }
+  </style>
+
+  <script>
+    /* ============================================================
+       CONFIG — All user-editable parameters live here
+       ============================================================ */
+    const CONFIG = {
+      USER: {
+        MAX_STAMINA: 100,            // starting & cap for user stamina
+        BASE_TICK_SPEED: 3,          // default stamina drain speed [units per second]
+        DISPLAY_DECIMALS: 0
+      },
+      NPC: {
+        COUNT: 5,                    // how many NPCs to spawn
+        STAMINA_STEPS: [100, 200, 300], // NPC max stamina chosen from these
+        BASE_TICK_SPEED: 3,          // NPC drain speed [units per second]
+        DISPLAY_DECIMALS: 0
+      },
+      CLICK: {
+        // Ranges for click effects (inclusive bounds)
+        USER_REDUCTION_RANGE: [25, 50],    // Water on Rocks — user damage
+        NPC_REDUCTION_RANGE: [25, 50],     // Water on Rocks — per NPC damage
+        BIRCH_REDUCTION_RANGE: [9, 18],    // Birch — affects targeted NPC only
+        BIRCH_AFFECTED_BY_HAT: false       // whether Hat also scales Birch clicks
+      },
+      SEEDS: {
+        USER_CLICK: 78548,  // seed for user click randomness (Water on Rocks)
+        NPC_CLICK: 16671,   // seed for NPC click randomness (Water on Rocks)
+        NPC_INIT: 34390,    // seed for picking NPC initial stamina steps
+        BIRCH: 78658        // seed for Birch per-NPC (each NPC gets a derived stream)
+      },
+      EFFECTS: {
+        BEER: {
+          SPEED_DELTA: -1,  // additive change to user tick speed (e.g., -1 => 3/s -> 2/s)
+          DURATION_S: 10
+        },
+        STAMINA_POTION: {
+          AMOUNT: 80        // "+80 Stamina" button amount
+        },
+        HAT: {
+          REDUCTION_FACTOR: 0.20, // user (and optionally NPCs) take % of usual Water-on-Rocks damage
+          DURATION_S: 15,
+          AFFECTS_USER_ONLY: true // if false, applies to both user and NPCs
+        }
+      },
+      DELAYS: {
+        // "Delay" modifier: disable button after pressing for this many seconds
+        WATER: 5,
+        BEER: 20,
+        STAMINA: 160,
+        HAT: 30,
+        BIRCH: 0.1,
+        RESET: 0
+      },
+      UI: {
+        DISABLE_BUTTONS_AT_ZERO: true, // lock inputs when user reaches 0 (Reset stays enabled)
+        PERSIST_WINS: true             // store wins in localStorage across page reloads
+      }
+    };
+    /* ===================== end CONFIG ===================== */
+
+    /* ------------------------------------------------------------
+       Seedable PRNG utilities (deterministic randoms per feature)
+       ------------------------------------------------------------ */
+    function mulberry32(seed) {
+      let t = seed >>> 0;
+      return function() {
+        t += 0x6D2B79F5;
+        let r = Math.imul(t ^ (t >>> 15), 1 | t);
+        r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+        return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function randIntRange(rng, min, max) {
+      // inclusive integer range using provided rng()
+      const x = rng();
+      return Math.floor(x * (max - min + 1)) + min;
+    }
+
+    /* ------------------------------------------------------------
+       TimedEffects: time-bound modifiers (Beer / Hat / etc.)
+       ------------------------------------------------------------ */
+    class TimedEffects {
+      constructor() { this.effects = []; }
+      now() { return performance.now() / 1000; } // seconds
+      add({ key, durationS, data = {}, onApply = null, onExpire = null }) {
+        const t = this.now();
+        const eff = { key, until: t + durationS, on: onExpire, data, onApply };
+        if (onApply) onApply(eff);
+        this.effects.push(eff);
+      }
+      isActive(key) {
+        const t = this.now();
+        return this.effects.some(e => e.key === key && e.until > t);
+      }
+      getRemainingMax(key) {
+        const t = this.now();
+        let maxLeft = 0;
+        this.effects.forEach(e => {
+          if (e.key === key && e.until > t) maxLeft = Math.max(maxLeft, e.until - t);
+        });
+        return maxLeft;
+      }
+      purgeExpired() {
+        const t = this.now();
+        this.effects = this.effects.filter(e => {
+          if (e.until <= t) { if (e.on) e.on(e); return false; }
+          return true;
+        });
+      }
+    }
+
+    /* ------------------------------------------------------------
+       Core game actors
+       ------------------------------------------------------------ */
+    class Actor {
+      constructor(max, baseTickSpeed, displayDecimals = 0) {
+        this.max = max;
+        this.value = max;
+        this.baseTickSpeed = baseTickSpeed;
+        this.displayDecimals = displayDecimals;
+        this.speedAdditions = 0;
+        // meta flags for win logic
+        this._wasZero = false;
+        this.finishedBeforeUser = false; // did this actor finish before user?
+      }
+      get tickSpeed() {
+        return Math.max(0, this.baseTickSpeed + this.speedAdditions);
+      }
+      tick(dt) {
+        this.value = Math.max(0, this.value - this.tickSpeed * dt);
+      }
+      addSpeed(delta) { this.speedAdditions += delta; }
+      cap() { this.value = Math.min(this.max, this.value); }
+      add(amount) { this.value = Math.min(this.max, this.value + amount); }
+      asText() { return this.value.toFixed(this.displayDecimals); }
+      percent() { return (this.value / this.max) * 100; }
+      isZero() { return this.value <= 0; }
+      resetFlags() { this._wasZero = false; this.finishedBeforeUser = false; }
+    }
+
+    /* ------------------------------------------------------------
+       Game State & UI wiring
+       ------------------------------------------------------------ */
+    let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
+    let effects, USER, NPCS;
+
+    // Wins counter (does not reset on "Reset" button)
+    let wins = 0;
+    if (CONFIG.UI.PERSIST_WINS) {
+      const stored = localStorage.getItem('wins_total');
+      wins = stored ? parseInt(stored, 10) || 0 : 0;
+    }
+
+    function initRNGs() {
+      rngUserClick = mulberry32(CONFIG.SEEDS.USER_CLICK);
+      rngNpcClick  = mulberry32(CONFIG.SEEDS.NPC_CLICK);
+      rngNpcInit   = mulberry32(CONFIG.SEEDS.NPC_INIT);
+      rngBirchPerNpc = []; // each NPC gets its own deterministic stream
+      for (let i = 0; i < CONFIG.NPC.COUNT; i++) {
+        // derive new seed per NPC; the constant is a large odd (golden ratio frac * 2^32)
+        rngBirchPerNpc.push(mulberry32((CONFIG.SEEDS.BIRCH + i * 0x9E3779B9) >>> 0));
+      }
+    }
+
+    function initGame() {
+      effects = new TimedEffects();
+      USER = new Actor(CONFIG.USER.MAX_STAMINA, CONFIG.USER.BASE_TICK_SPEED, CONFIG.USER.DISPLAY_DECIMALS);
+
+      const npcSteps = CONFIG.NPC.STAMINA_STEPS;
+      NPCS = Array.from({ length: CONFIG.NPC.COUNT }).map(() => {
+        const stepIdx = randIntRange(rngNpcInit, 0, npcSteps.length - 1);
+        const max = npcSteps[stepIdx];
+        const npc = new Actor(max, CONFIG.NPC.BASE_TICK_SPEED, CONFIG.NPC.DISPLAY_DECIMALS);
+        npc.value = max;
+        return npc;
+      });
+    }
+
+    function resetRun() {
+      // Reset run while preserving 'wins'
+      initRNGs();
+      initGame();
+      // Rebuild NPC DOM (safer than reusing)
+      buildNPCsDOM();
+      running = true;
+      userEnded = false;
+      lastTs = performance.now();
+      document.getElementById('time-up').textContent = '';
+      togglePrimaryButtons(true); // enable action buttons
+      updateWinsUI();
+      updateUI();
+    }
+
+    // DOM helpers & buttons
+    let $btnAction, $btnBeer, $btnStamina, $btnHat, $btnReset, $statusLine;
+    function bindStaticButtons() {
+      $btnAction  = document.getElementById('action-btn');
+      $btnBeer    = document.getElementById('beer-btn');
+      $btnStamina = document.getElementById('stamina-btn');
+      $btnHat     = document.getElementById('hat-btn');
+      $btnReset   = document.getElementById('reset-btn');
+      $statusLine = document.getElementById('time-up');
+
+      $btnAction.addEventListener('click', () => withDelay($btnAction, CONFIG.DELAYS.WATER, onWaterOnRocks));
+      $btnBeer.addEventListener('click',   () => withDelay($btnBeer,   CONFIG.DELAYS.BEER,   onBeer));
+      $btnStamina.addEventListener('click',() => withDelay($btnStamina,CONFIG.DELAYS.STAMINA,onStaminaBoost));
+      $btnHat.addEventListener('click',    () => withDelay($btnHat,    CONFIG.DELAYS.HAT,    onHat));
+      $btnReset.addEventListener('click',  () => withDelay($btnReset,  CONFIG.DELAYS.RESET,  resetRun));
+    }
+
+    function withDelay(buttonEl, delayS, fn) {
+      // Delay modifier: disable button after click for delayS seconds
+      if (buttonEl.disabled) return;
+      fn();
+      buttonEl.disabled = true;
+      setTimeout(() => { buttonEl.disabled = false; }, Math.max(0, delayS) * 1000);
+    }
+
+    function togglePrimaryButtons(enabled) {
+      // Reset should remain enabled regardless of end state
+      [$btnAction, $btnBeer, $btnStamina, $btnHat].forEach(b => { if (b) b.disabled = !enabled; });
+      // Birch buttons
+      document.querySelectorAll('.birch-btn').forEach(b => b.disabled = !enabled);
+    }
+
+    function buildNPCsDOM() {
+      const root = document.getElementById('npcs');
+      root.innerHTML = '';
+      NPCS.forEach((npc, i) => {
+        const node = document.createElement('div');
+        node.className = 'npc';
+        node.innerHTML = `
+          <div><strong>NPC ${i+1}:</strong> <span class="npc-value">${npc.asText()}</span> <span class="tag">(max ${npc.max})</span></div>
+          <div class="bar-container"><div class="bar npc-bar" style="width:${npc.percent()}%"></div></div>
+          <div class="row">
+            <button class="birch-btn" data-idx="${i}">Birch</button>
+            <span class="npc-status tag"></span>
+          </div>
+        `;
+        root.appendChild(node);
+      });
+
+      // Bind per-NPC Birch buttons with per-button delay
+      root.querySelectorAll('.birch-btn').forEach(btn => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        btn.addEventListener('click', () => withDelay(btn, CONFIG.DELAYS.BIRCH, () => onBirch(idx)));
+      });
+    }
+
+    /* ------------------------------------------------------------
+       Effects application helpers
+       ------------------------------------------------------------ */
+    function applyHatMultiplier(value, isUser) {
+      const hatActive = effects.isActive('hat');
+      const cfg = CONFIG.EFFECTS.HAT;
+      if (!hatActive) return value;
+      if (cfg.AFFECTS_USER_ONLY && !isUser) return value;
+      return value * cfg.REDUCTION_FACTOR;
+    }
+
+    // Main button: Water on Rocks
+    function onWaterOnRocks() {
+      const [uMin, uMax] = CONFIG.CLICK.USER_REDUCTION_RANGE;
+      const [nMin, nMax] = CONFIG.CLICK.NPC_REDUCTION_RANGE;
+
+      // Deterministic randoms
+      let userReduction = randIntRange(rngUserClick, uMin, uMax);
+      userReduction = applyHatMultiplier(userReduction, true);
+      USER.value = Math.max(0, USER.value - userReduction);
+
+      NPCS.forEach(npc => {
+        let r = randIntRange(rngNpcClick, nMin, nMax);
+        r = applyHatMultiplier(r, false);
+        npc.value = Math.max(0, npc.value - r);
+      });
+
+      updateUI();
+      checkEndState();
+    }
+
+    // Beer: temp speed reduction
+    function onBeer() {
+      const { SPEED_DELTA, DURATION_S } = CONFIG.EFFECTS.BEER;
+      USER.addSpeed(SPEED_DELTA);
+      effects.add({
+        key: 'beer:' + (Math.random()), // allow stacking
+        durationS: DURATION_S,
+        onExpire: () => USER.addSpeed(-SPEED_DELTA)
+      });
+      updateUI();
+    }
+
+    // +Stamina
+    function onStaminaBoost() {
+      const { AMOUNT } = CONFIG.EFFECTS.STAMINA_POTION;
+      USER.add(AMOUNT);
+      USER.cap();
+      updateUI();
+    }
+
+    // Hat: scale Water-on-Rocks damage for a duration
+    function onHat() {
+      const { DURATION_S } = CONFIG.EFFECTS.HAT;
+      effects.add({ key: 'hat', durationS: DURATION_S });
+      updateUI();
+    }
+
+    // Birch: targeted NPC reduction (9–18 by default), seedable per-NPC
+    function onBirch(npcIndex) {
+      const npc = NPCS[npcIndex];
+      const [bMin, bMax] = CONFIG.CLICK.BIRCH_REDUCTION_RANGE;
+      let dmg = randIntRange(rngBirchPerNpc[npcIndex], bMin, bMax);
+
+      if (CONFIG.CLICK.BIRCH_AFFECTED_BY_HAT) {
+        // If desired, Hat could also scale Birch
+        const isUser = false; // Birch targets NPCs
+        dmg = applyHatMultiplier(dmg, isUser);
+      }
+
+      npc.value = Math.max(0, npc.value - dmg);
+      updateUI();
+      checkEndState();
+    }
+
+    /* ------------------------------------------------------------
+       Animation loop (smooth ticking) & win logic
+       ------------------------------------------------------------ */
+    let running = true;
+    let userEnded = false;
+    let lastTs = performance.now();
+
+    function loop(ts) {
+      const dt = (ts - lastTs) / 1000; // seconds
+      lastTs = ts;
+
+      effects.purgeExpired();
+
+      if (running) {
+        USER.tick(dt);
+        NPCS.forEach(n => n.tick(dt));
+
+        // Track who finished before the user
+        NPCS.forEach(n => {
+          if (!n._wasZero && n.isZero()) {
+            n._wasZero = true;
+            if (!USER.isZero()) {
+              n.finishedBeforeUser = true;
+            }
+          }
+        });
+
+        updateUI();
+        checkEndState();
+      }
+
+      requestAnimationFrame(loop);
+    }
+
+    function checkEndState() {
+      if (!userEnded && USER.isZero() && CONFIG.UI.DISABLE_BUTTONS_AT_ZERO) {
+        userEnded = true;
+        running = false;
+
+        // Count NPCs that finished before user and add to cumulative wins
+        const add = NPCS.reduce((acc, n) => acc + (n.finishedBeforeUser ? 1 : 0), 0);
+        wins += add;
+        if (CONFIG.UI.PERSIST_WINS) localStorage.setItem('wins_total', String(wins));
+        updateWinsUI();
+
+        $statusLine.textContent = 'time is up';
+        togglePrimaryButtons(false);
+        // Keep Reset enabled
+        $btnReset.disabled = false;
+      }
+    }
+
+    function updateWinsUI() {
+      document.getElementById('wins-count').textContent = String(wins);
+    }
+
+    function updateUI() {
+      // User UI
+      document.getElementById('user-value').textContent = USER.asText();
+      document.getElementById('user-bar').style.width = USER.percent() + '%';
+
+      // Active effect tags
+      const beerLeft = remainingFamily('beer'); // aggregate
+      const hatLeft  = effects.getRemainingMax('hat');
+
+      const tags = [];
+      if (beerLeft.total > 0) tags.push(`Beer: ~${beerLeft.total.toFixed(0)}s`);
+      if (hatLeft > 0) tags.push(`Hat: ${hatLeft.toFixed(0)}s`);
+      document.getElementById('effect-tags').textContent = tags.join(' · ');
+
+      // NPC UI
+      const npcNodes = document.querySelectorAll('#npcs .npc');
+      NPCS.forEach((npc, i) => {
+        const node = npcNodes[i];
+        node.querySelector('.npc-value').textContent = npc.asText();
+        node.querySelector('.npc-bar').style.width = npc.percent() + '%';
+        if (npc.isZero()) node.querySelector('.npc-status').textContent = 'win';
+      });
+
+      // Speed hint
+      document.getElementById('speed-tag').textContent = `Speed: ${USER.tickSpeed.toFixed(2)}/s`;
+    }
+
+    function remainingFamily(prefix) {
+      const now = performance.now() / 1000;
+      const list = effects.effects.filter(e => (''+e.key).startsWith(prefix));
+      const total = list.reduce((acc, e) => acc + Math.max(0, e.until - now), 0);
+      return { total, count: list.length };
+    }
+
+    /* ------------------------------------------------------------
+       Bootstrap
+       ------------------------------------------------------------ */
+    document.addEventListener('DOMContentLoaded', () => {
+      // init RNGs & game
+      initRNGs();
+      initGame();
+      // bind user-facing UI
+      bindStaticButtons();
+      buildNPCsDOM();
+      // initial paint & wins
+      updateWinsUI();
+      updateUI();
+      // start loop
+      requestAnimationFrame(loop);
+    });
+  </script>
+</head>
+<body>
+  <div class="section-header">
+    <h2>User</h2>
+    <div class="tag">Wins: <strong id="wins-count">0</strong></div>
+  </div>
+
+  <div class="stack">
+    <div class="row">
+      <div><strong>Stamina:</strong> <span id="user-value"></span> <span class="tag" id="speed-tag"></span></div>
+    </div>
+    <div class="bar-container"><div id="user-bar" class="bar"></div></div>
+    <div class="row">
+      <button id="action-btn">Water on Rocks</button>
+      <!-- Right-side buttons with per-press delay -->
+      <div class="right-buttons">
+        <button id="beer-btn">Beer</button>
+        <button id="stamina-btn">+80 Stamina</button>
+        <button id="hat-btn">Hat</button>
+        <button id="reset-btn">Reset</button>
+      </div>
+    </div>
+    <div class="row small">
+      <span id="effect-tags" class="tag"></span>
+    </div>
+    <div id="time-up" class="muted"></div>
+  </div>
+
+  <hr />
+
+  <h2>NPCs</h2>
+  <div id="npcs" class="stack"></div>
+
+  <div class="panel small">
+    <strong>Notes for editing:</strong>
+    <ul>
+      <li>Change all numbers at the top in <code>CONFIG</code> (ranges, seeds, speeds, durations, delays).</li>
+      <li>Each button now has a <em>delay</em> (post-click disabled) time in <code>CONFIG.DELAYS</code> (default 1s).</li>
+      <li><code>Birch</code> under each NPC deducts a seeded random amount from that NPC only (default 9–18).</li>
+      <li><code>Reset</code> restarts the run but does <strong>not</strong> reset the cumulative <em>wins</em> counter.</li>
+      <li>Set <code>UI.PERSIST_WINS=true</code> to keep wins in <code>localStorage</code> across page reloads.</li>
+    </ul>
+  </div>
+</body>
+</html>
