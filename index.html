@@ -230,7 +230,7 @@
       }
     }
 
-    function initGame() {
+    function initRun() {
       effects = new TimedEffects();
       USER = new Actor(CONFIG.USER.MAX_STAMINA, CONFIG.USER.BASE_TICK_SPEED, CONFIG.USER.DISPLAY_DECIMALS);
 
@@ -243,22 +243,6 @@
         return npc;
       });
       lastTs = performance.now();
-    }
-
-    /* ------------------------------------------------------------
-    Main Loop
-    ------------------------------------------------------------ */
-    function loop(ts){
-      const dt = (ts - lastTs)/1000;
-      lastTs = ts;
-
-      if (running && GameState.is('playing')) {
-        USER.tick(dt);
-        NPCS.forEach(n=>n.tick(dt));
-        if (USER.isZero()) endRun();
-        updateUI();
-      }
-      requestAnimationFrame(loop);
     }
 
     /* ------------------------------------------------------------
@@ -455,7 +439,7 @@
 
       effects.purgeExpired();
 
-      if (running) {
+      if (running && GameState.is('playing')) {
         USER.tick(dt);
         NPCS.forEach(n => n.tick(dt));
 
@@ -463,7 +447,7 @@
         NPCS.forEach(n => {
           if (!n._wasZero && n.isZero()) {
             n._wasZero = true;
-            if (!USER.isZero()) {
+            if (!USER.isZero()) endRun(){
               n.finishedBeforeUser = true;
             }
           }
@@ -549,7 +533,6 @@
       requestAnimationFrame(loop);
       syncUIState();
       updateEconomyUI();
-      requestAnimationFrame(loop);
     });
 
   </script>
@@ -580,25 +563,25 @@
     </div>
     <div id="time-up" class="muted"></div>
   </div>
-  
+
   <div class="panel">
-  Coins: <strong id="coins">0</strong>
-  <div class="row">
-    <button onclick="buyItem('WATER')">Buy Water</button>
-    <button onclick="buyItem('BEER')">Buy Beer</button>
-    <button onclick="buyItem('ICE_CREAM')">Buy Ice Cream</button>
-    <button onclick="buyItem('HAT')">Buy Hat</button>
-  </div>
-  <div class="row tag">
-    Water: <span id="inv-WATER">0</span> |
-    Beer: <span id="inv-BEER">0</span> |
-    Ice Cream: <span id="inv-ICE_CREAM">0</span> |
-    Hat: <span id="inv-HAT">0</span>
-  </div>
-  <button id="go-btn" onclick="startRun()">Go In</button>
+    Coins: <strong id="coins">0</strong>
+    <div class="row">
+      <button onclick="buyItem('WATER')">Buy Water</button>
+      <button onclick="buyItem('BEER')">Buy Beer</button>
+      <button onclick="buyItem('ICE_CREAM')">Buy Ice Cream</button>
+      <button onclick="buyItem('HAT')">Buy Hat</button>
+    </div>
+    <div class="row tag">
+      Water: <span id="inv-WATER">0</span> |
+      Beer: <span id="inv-BEER">0</span> |
+      Ice Cream: <span id="inv-ICE_CREAM">0</span> |
+      Hat: <span id="inv-HAT">0</span>
+    </div>
+    <button id="go-btn" onclick="startRun()">Go In</button>
   </div>
 
-  <hr />
+  <hr/>
 
   <h2>NPCs</h2>
   <div id="npcs" class="stack"></div>
