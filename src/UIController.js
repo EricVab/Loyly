@@ -1,3 +1,5 @@
+// View
+
 class UIController {
     constructor(gameManager) {
         this.gameManager = gameManager;

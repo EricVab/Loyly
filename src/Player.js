@@ -1,3 +1,4 @@
+// Model
 const playerId = "me";
 
 class Player {

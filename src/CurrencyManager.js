@@ -1,3 +1,5 @@
+// Model
+
 class CurrencyManager {
     // manages the currency system of the game, like coins, gems, etc.
     constructor() {

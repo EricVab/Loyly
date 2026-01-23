@@ -1,3 +1,5 @@
+// Controller
+
 class MinigameManager {
     // the minigame manager is responsible for managing the state and logic of a minigame
     

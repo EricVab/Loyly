@@ -1,3 +1,5 @@
+// Model
+
 class NPC {
     constructor(name, maxStamina) {
         this.name = name;

@@ -1,3 +1,5 @@
+// Controller
+
 class GameManager extends EventEmitter {
     // the game manager is the central coordinator of the game state and logic and of minigames
 

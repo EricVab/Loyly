@@ -1,3 +1,5 @@
+// Model
+
 export const ItemTypes = {
     WATER: Symbol('WATER'),
     BEER: Symbol('BEER'),
