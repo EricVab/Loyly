@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>POCv3</title>
+  <title>POCv4</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -137,6 +137,13 @@
           DURATION_S: 10
         },
 
+        WOOD: {
+          SPEED_DELTA: +1, // additive change to tick speed (makes counters drain faster)
+          DURATION_S: 10,  // similar duration style to Beer
+          AFFECTS_USER: true,
+          AFFECTS_NPCS: true
+        },
+
         ICE_CREAM: {
           AMOUNT: 80        // "Ice Cream" button amount
         },
@@ -158,7 +165,8 @@
         WATER: { price: 1 },
         BEER: { price: 1 },
         ICE_CREAM: { price: 1 },
-        HAT: { price: 1 }
+        HAT: { price: 1 },
+        WOOD: { price: 1 }
       },
 
       DELAYS: {
@@ -167,8 +175,10 @@
         BEER: 1,
         ICE_CREAM: 1,
         HAT: 1,
+        WOOD: 1,
         BIRCH: 1,
-        RESET: 0
+        RESET: 0,
+        EXIT: 0
       },
 
       UI: {
@@ -188,12 +198,15 @@
       },
       is(state) {
         return this.current === state;
+      },
+      isOneOf(states) {
+        return states.includes(this.current);
       }
     };
 
     /* ------------------------------------------------------------
        Economy & Inventory
-       - Purchases only allowed in menu state.
+       - Purchases only allowed in menu-like states.
        - Action buttons consume inventory while playing.
        ------------------------------------------------------------ */
     let coins = CONFIG.ECONOMY.STARTING_COINS;
@@ -202,7 +215,8 @@
       WATER: 0,
       BEER: 0,
       ICE_CREAM: 0,
-      HAT: 0
+      HAT: 0,
+      WOOD: 0
     };
 
     function loadCoins() {
@@ -221,9 +235,13 @@
       return coins >= CONFIG.ITEMS[itemKey].price;
     }
 
+    function isShopOpenState() {
+      // You can buy items in menu, win, or lose states
+      return GameState.isOneOf(['menu', 'win', 'lose']);
+    }
+
     function buyItem(itemKey) {
-      // Only allow buying items in menu state
-      if (!GameState.is('menu')) return;
+      if (!isShopOpenState()) return;
       if (!canAfford(itemKey)) return;
       coins -= CONFIG.ITEMS[itemKey].price;
       inventory[itemKey] += 1;
@@ -266,7 +284,7 @@
     }
 
     /* ------------------------------------------------------------
-       TimedEffects: time-bound modifiers (Beer / Hat / etc.)
+       TimedEffects: time-bound modifiers (Beer / Wood / Hat / etc.)
        ------------------------------------------------------------ */
     class TimedEffects {
       constructor() {
@@ -383,6 +401,9 @@
     let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
     let effects, USER, NPCS;
 
+    // last computed reward (only applied on WIN)
+    let lastPotentialReward = 0;
+
     /* ------------------------------------------------------------
        Initialization
        ------------------------------------------------------------ */
@@ -415,6 +436,7 @@
 
       // Reset time base
       lastTs = performance.now();
+      lastPotentialReward = 0;
     }
 
     function initGame() {
@@ -424,6 +446,7 @@
       GameState.set(CONFIG.STATE.START);
       userEnded = false;
       running = false;
+      updateEconomyUI();
     }
 
     /* ------------------------------------------------------------
@@ -444,13 +467,36 @@
       syncUIState();
     }
 
-    function endToMenu(message = '') {
-      // Return to menu, stop ticking (for future states this is the single place to do it)
+    function endRunTo(state, message = '') {
+      // Single exit point for run-ending states
       running = false;
-      GameState.set('menu');
+      GameState.set(state);
       document.getElementById('time-up').textContent = message;
       syncUIState();
       updateUI();
+    }
+
+    function winRun() {
+      if (!GameState.is('playing')) return;
+
+      // Compute reward based on NPCs who finished before user
+      const reward = computePotentialReward();
+      lastPotentialReward = reward;
+
+      // Apply reward only on WIN
+      coins += reward;
+      saveCoins();
+      updateEconomyUI();
+
+      endRunTo('win', reward > 0 ? `win (+${reward} coins)` : 'win');
+    }
+
+    function loseRun() {
+      if (!GameState.is('playing')) return;
+      // No coins applied on lose
+      const reward = computePotentialReward();
+      lastPotentialReward = reward;
+      endRunTo('lose', 'lose');
     }
 
     function resetRun() {
@@ -461,7 +507,7 @@
       initRun();
       buildNPCsDOM();
       updateUI();
-      // Keep current state; if playing keep running true, if menu keep false
+      // Keep current state; if playing keep running true, otherwise false
       running = GameState.is('playing');
       syncUIState();
     }
@@ -470,27 +516,32 @@
        UI state syncing
        ------------------------------------------------------------ */
     function syncUIState() {
-      const inMenu = GameState.is('menu');
+      const inPlaying = GameState.is('playing');
+      const inShop = isShopOpenState();
 
       // Action buttons are only active while playing
-      ['action-btn', 'beer-btn', 'icecream-btn', 'hat-btn'].forEach(id => {
+      ['action-btn', 'beer-btn', 'icecream-btn', 'hat-btn', 'wood-btn'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.disabled = inMenu;
+        if (el) el.disabled = !inPlaying;
       });
+
+      // Exit button is only active while playing
+      const exitBtn = document.getElementById('exit-btn');
+      if (exitBtn) exitBtn.disabled = !inPlaying;
 
       // NPC Birch buttons only active while playing
       document.querySelectorAll('.birch-btn').forEach(btn => {
-        btn.disabled = inMenu;
+        btn.disabled = !inPlaying;
       });
 
-      // Shop buttons only active in menu
+      // Shop buttons only active in menu-like states
       document.querySelectorAll('.shop-btn').forEach(btn => {
-        btn.disabled = !inMenu;
+        btn.disabled = !inShop;
       });
 
-      // Go In only active in menu
+      // Go In only active in menu-like states
       const go = document.getElementById('go-btn');
-      if (go) go.disabled = !inMenu;
+      if (go) go.disabled = !inShop;
 
       // Reset always enabled
       const reset = document.getElementById('reset-btn');
@@ -500,19 +551,26 @@
     /* ------------------------------------------------------------
        DOM helpers & buttons
        ------------------------------------------------------------ */
-    let $btnAction, $btnBeer, $btnIceCream, $btnHat, $btnReset;
+    let $btnWater, $btnBeer, $btnIceCream, $btnHat, $btnWood, $btnExit, $btnReset;
 
     function bindStaticButtons() {
-      $btnAction = document.getElementById('action-btn');
+      $btnWater = document.getElementById('action-btn');
       $btnBeer = document.getElementById('beer-btn');
       $btnIceCream = document.getElementById('icecream-btn');
       $btnHat = document.getElementById('hat-btn');
+      $btnWood = document.getElementById('wood-btn');
+      $btnExit = document.getElementById('exit-btn');
       $btnReset = document.getElementById('reset-btn');
 
-      $btnAction.addEventListener('click', () => withDelay($btnAction, CONFIG.DELAYS.WATER, onWater));
+      $btnWater.addEventListener('click', () => withDelay($btnWater, CONFIG.DELAYS.WATER, onWater));
       $btnBeer.addEventListener('click', () => withDelay($btnBeer, CONFIG.DELAYS.BEER, onBeer));
       $btnIceCream.addEventListener('click', () => withDelay($btnIceCream, CONFIG.DELAYS.ICE_CREAM, onIceCream));
       $btnHat.addEventListener('click', () => withDelay($btnHat, CONFIG.DELAYS.HAT, onHat));
+      $btnWood.addEventListener('click', () => withDelay($btnWood, CONFIG.DELAYS.WOOD, onWood));
+
+      // Exit (no price / inventory)
+      $btnExit.addEventListener('click', () => withDelay($btnExit, CONFIG.DELAYS.EXIT, winRun));
+
       $btnReset.addEventListener('click', () => withDelay($btnReset, CONFIG.DELAYS.RESET, resetRun));
 
       // Go In
@@ -523,6 +581,7 @@
       document.getElementById('buy-beer').addEventListener('click', () => buyItem('BEER'));
       document.getElementById('buy-icecream').addEventListener('click', () => buyItem('ICE_CREAM'));
       document.getElementById('buy-hat').addEventListener('click', () => buyItem('HAT'));
+      document.getElementById('buy-wood').addEventListener('click', () => buyItem('WOOD'));
     }
 
     function withDelay(buttonEl, delayS, fn) {
@@ -582,14 +641,23 @@
     }
 
     function updateFinishedFlagsAfterManualDamage() {
-      // When a click action sets NPC stamina to 0, we need to record whether
-      // the NPC finished before the user (for reward coins).
+      // When a click action sets NPC stamina to 0, record if NPC finished before user
       NPCS.forEach(n => {
         if (!n._wasZero && n.isZero()) {
           n._wasZero = true;
           if (!USER.isZero()) n.finishedBeforeUser = true;
         }
       });
+    }
+
+    function computePotentialReward() {
+      // Potential reward is # of NPCs that finished before user
+      return NPCS.reduce((acc, n) => acc + (n.finishedBeforeUser ? 1 : 0), 0);
+    }
+
+    function applySpeedDeltaToUserAndNpcs(delta) {
+      USER.addSpeed(delta);
+      NPCS.forEach(n => n.addSpeed(delta));
     }
 
     /* ------------------------------------------------------------
@@ -623,10 +691,40 @@
       USER.addSpeed(SPEED_DELTA);
 
       effects.add({
-        key: `beer:${Math.random()}`, // allow stacking
+        key: `beer:${Math.random()}`,
         durationS: DURATION_S,
         onExpire: () => USER.addSpeed(-SPEED_DELTA)
       });
+
+      updateUI();
+    }
+
+    function onWood() {
+      if (!consumeItem('WOOD')) return;
+
+      const { SPEED_DELTA, DURATION_S, AFFECTS_USER, AFFECTS_NPCS } = CONFIG.EFFECTS.WOOD;
+      const delta = SPEED_DELTA;
+
+      if (AFFECTS_USER && AFFECTS_NPCS) {
+        applySpeedDeltaToUserAndNpcs(delta);
+        effects.add({
+          key: `wood:${Math.random()}`,
+          durationS: DURATION_S,
+          onExpire: () => applySpeedDeltaToUserAndNpcs(-delta)
+        });
+      } else {
+        // Fall back to flexible targeting (future-proof)
+        if (AFFECTS_USER) USER.addSpeed(delta);
+        if (AFFECTS_NPCS) NPCS.forEach(n => n.addSpeed(delta));
+        effects.add({
+          key: `wood:${Math.random()}`,
+          durationS: DURATION_S,
+          onExpire: () => {
+            if (AFFECTS_USER) USER.addSpeed(-delta);
+            if (AFFECTS_NPCS) NPCS.forEach(n => n.addSpeed(-delta));
+          }
+        });
+      }
 
       updateUI();
     }
@@ -664,13 +762,13 @@
     }
 
     /* ------------------------------------------------------------
-       Animation loop (smooth ticking) & reward / state logic
+       Animation loop (smooth ticking) & win/lose logic
        ------------------------------------------------------------ */
     function loop(ts) {
       const dt = (ts - lastTs) / 1000;
       lastTs = ts;
 
-      // Purge expired effects even in menu, so UI tags clear correctly
+      // Purge expired effects even when not playing, so UI tags clear correctly
       if (effects) effects.purgeExpired();
 
       if (running && GameState.is('playing')) {
@@ -702,15 +800,8 @@
       if (USER.isZero()) {
         userEnded = true;
         running = false;
-
-        // Reward coins: count NPCs that finished before user
-        const reward = NPCS.reduce((acc, n) => acc + (n.finishedBeforeUser ? 1 : 0), 0);
-        coins += reward;
-        saveCoins();
-        updateEconomyUI();
-
-        // Return to menu state
-        endToMenu('time is up');
+        // Lose state: no coin payout
+        loseRun();
       }
     }
 
@@ -724,10 +815,12 @@
 
       // Active effect tags
       const beerLeft = effects ? effects.sumRemainingByPrefix('beer:') : 0;
+      const woodLeft = effects ? effects.sumRemainingByPrefix('wood:') : 0;
       const hatLeft = effects ? effects.getRemainingMax('hat') : 0;
 
       const tags = [];
       if (beerLeft > 0) tags.push(`Beer: ~${beerLeft.toFixed(0)}s`);
+      if (woodLeft > 0) tags.push(`Wood: ~${woodLeft.toFixed(0)}s`);
       if (hatLeft > 0) tags.push(`Hat: ${hatLeft.toFixed(0)}s`);
       document.getElementById('effect-tags').textContent = tags.join(' · ');
 
@@ -743,6 +836,18 @@
 
       // Speed hint
       document.getElementById('speed-tag').textContent = `Speed: ${USER.tickSpeed.toFixed(2)}/s`;
+
+      // Optional: show potential reward while playing (doesn't add coins yet)
+      const potential = computePotentialReward();
+      const state = GameState.current;
+      const info = document.getElementById('run-info');
+      if (info) {
+        if (state === 'playing') {
+          info.textContent = `Potential reward: ${potential}`;
+        } else {
+          info.textContent = '';
+        }
+      }
 
       // Keep economy UI fresh
       updateEconomyUI();
@@ -787,14 +892,17 @@
 
       <div class="right-buttons">
         <button id="beer-btn">Beer</button>
+        <button id="wood-btn">Wood</button>
         <button id="icecream-btn">Ice Cream</button>
         <button id="hat-btn">Hat</button>
+        <button id="exit-btn">Exit</button>
         <button id="reset-btn">Reset</button>
       </div>
     </div>
 
     <div class="row small">
       <span id="effect-tags" class="tag"></span>
+      <span id="run-info" class="tag"></span>
     </div>
 
     <div id="time-up" class="muted"></div>
@@ -804,6 +912,7 @@
     <div class="row">
       <button id="buy-water" class="shop-btn">Buy Water</button>
       <button id="buy-beer" class="shop-btn">Buy Beer</button>
+      <button id="buy-wood" class="shop-btn">Buy Wood</button>
       <button id="buy-icecream" class="shop-btn">Buy Ice Cream</button>
       <button id="buy-hat" class="shop-btn">Buy Hat</button>
     </div>
@@ -811,6 +920,7 @@
     <div class="row tag">
       Water: <span id="inv-WATER">0</span>
       Beer: <span id="inv-BEER">0</span>
+      Wood: <span id="inv-WOOD">0</span>
       Ice Cream: <span id="inv-ICE_CREAM">0</span>
       Hat: <span id="inv-HAT">0</span>
     </div>
@@ -827,9 +937,10 @@
     <strong>Notes for editing:</strong>
     <ul>
       <li>Edit all numbers at the top in <code>CONFIG</code> (ranges, seeds, speeds, durations, delays, prices).</li>
-      <li>Menu state: you can only buy items; action buttons and ticking are disabled.</li>
-      <li>Playing state: action buttons consume inventory.</li>
-      <li>When user stamina hits 0, the run ends and you return to menu. Earn 1 coin per NPC that hit 0 before you.</li>
+      <li>Shop is available in <code>menu</code>, <code>win</code>, and <code>lose</code> states.</li>
+      <li><strong>Exit</strong> ends the run in a <code>win</code> state and pays out the potential reward in coins.</li>
+      <li>If the user reaches 0 stamina before exiting, the run ends in a <code>lose</code> state and pays out <strong>no</strong> coins.</li>
+      <li><strong>Wood</strong> increases tick drain speed by +1 for both user and NPCs for a duration (stackable), and consumes Wood inventory.</li>
     </ul>
   </div>
 </body>
