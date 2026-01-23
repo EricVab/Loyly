@@ -89,7 +89,11 @@
         HAT: 30,
         BIRCH: 0.1,
         RESET: 0
-      };
+      },
+      UI: {
+        DISABLE_BUTTONS_AT_ZERO: true, // lock inputs when user reaches 0 (Reset stays enabled)
+        PERSIST_WINS: true             // store wins in localStorage across page reloads
+      }
     };
     /* ===================== end CONFIG ===================== */
 
@@ -216,6 +220,19 @@
     let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
     let effects, USER, NPCS;
     let userEnded = false;
+    let wins = 0;
+
+    function initGame(){
+    // Load cumulative wins if enabled
+    if (CONFIG.UI?.PERSIST_WINS) {
+      wins = Number(localStorage.getItem('wins_total') || '0') || 0;
+    }
+    userEnded = false;
+    running = false;
+    GameState.set('menu');
+    initRun();
+    }
+
     /* ------------------------------------------------------------
        Game State & UI wiring
        ------------------------------------------------------------ */
@@ -251,9 +268,15 @@
     State Transitions
     ------------------------------------------------------------ */
     function startRun(){
+      userEnded = false;
+      if ($statusLine) $statusLine.textContent = '';
       initRun();
+      buildNPCsDOM();
+      togglePrimaryButtons(true);
       running = true;
       GameState.set('playing');
+      updateUI();
+      syncUIState();
     }
     function endRun(){
       running = false;
@@ -280,8 +303,18 @@
     ------------------------------------------------------------ */
     function syncUIState(){
       const inMenu = GameState.is('menu');
-      document.querySelectorAll('.action').forEach(b=>b.disabled=inMenu);
-      document.getElementById('go-btn').disabled=!inMenu;
+      ['action-btn','beer-btn','stamina-btn','hat-btn'].forEach(id=>{
+        const el=document.getElementById(id);
+        if(el) el.disabled = inMenu;
+      });
+      // Per-NPC buttons
+      document.querySelectorAll('.birch-btn').forEach(b=>b.disabled=inMenu);
+      // Go In available only in menu
+      const go=document.getElementById('go-btn');
+      if(go) go.disabled = !inMenu;
+      // Reset is always allowed
+      const reset=document.getElementById('reset-btn');
+      if(reset) reset.disabled = false;
     }
 
     function updateEconomyUI(){
@@ -290,12 +323,6 @@
         document.getElementById(`inv-${k}`).textContent = inventory[k];
       }
     }
-
-    function updateUI(){
-      document.getElementById('user-val').textContent = USER.text();
-      document.getElementById('user-bar').style.width = USER.percent()+'%';
-    }
-
 
     // DOM helpers & buttons
     let $btnAction, $btnBeer, $btnStamina, $btnHat, $btnReset, $statusLine;
@@ -353,6 +380,19 @@
       });
     }
 
+    function resetRun() {
+      // Restart the current run (does not reset wins)
+      userEnded = false;
+      running = GameState.is('playing');
+      if ($statusLine) $statusLine.textContent = '';
+      NPCS?.forEach(n=>n.resetFlags?.());
+      initRun();
+      buildNPCsDOM();
+      togglePrimaryButtons(GameState.is('playing'));
+      updateUI();
+      syncUIState();
+    }
+
     /* ------------------------------------------------------------
        Effects application helpers
        ------------------------------------------------------------ */
@@ -366,8 +406,9 @@
 
     // Main button: Water on Rocks
     function onWaterOnRocks() {
-      const [uMin, uMax] = CONFIG.CLICK.USER_REDUCTION_RANGE;
-      const [nMin, nMax] = CONFIG.CLICK.NPC_REDUCTION_RANGE;
+      if (!consumeItem('WATER')) return;
+        const [uMin, uMax] = CONFIG.CLICK.USER_REDUCTION_RANGE;
+        const [nMin, nMax] = CONFIG.CLICK.NPC_REDUCTION_RANGE;
 
       // Deterministic randoms
       let userReduction = randIntRange(rngUserClick, uMin, uMax);
@@ -386,29 +427,32 @@
 
     // Beer: temp speed reduction
     function onBeer() {
-      const { SPEED_DELTA, DURATION_S } = CONFIG.EFFECTS.BEER;
-      USER.addSpeed(SPEED_DELTA);
-      effects.add({
-        key: 'beer:' + (Math.random()), // allow stacking
-        durationS: DURATION_S,
-        onExpire: () => USER.addSpeed(-SPEED_DELTA)
-      });
+      if (!consumeItem('BEER')) return;
+        const { SPEED_DELTA, DURATION_S } = CONFIG.EFFECTS.BEER;
+        USER.addSpeed(SPEED_DELTA);
+        effects.add({
+          key: 'beer:' + (Math.random()), // allow stacking
+          durationS: DURATION_S,
+          onExpire: () => USER.addSpeed(-SPEED_DELTA)
+         });
       updateUI();
     }
 
     // +Stamina
     function onStaminaBoost() {
-      const { AMOUNT } = CONFIG.EFFECTS.ICE_CREAM;
-      USER.add(AMOUNT);
-      USER.cap();
-      updateUI();
+      if (!consumeItem('ICE_CREAM')) return;
+        const { AMOUNT } = CONFIG.EFFECTS.ICE_CREAM;
+        USER.add(AMOUNT);
+        USER.cap();
+        updateUI();
     }
 
     // Hat: scale Water-on-Rocks damage for a duration
     function onHat() {
-      const { DURATION_S } = CONFIG.EFFECTS.HAT;
-      effects.add({ key: 'hat', durationS: DURATION_S });
-      updateUI();
+      if (!consumeItem('HAT')) return;
+        const { DURATION_S } = CONFIG.EFFECTS.HAT;
+        effects.add({ key: 'hat', durationS: DURATION_S });
+        updateUI();
     }
 
     // Birch: targeted NPC reduction (9–18 by default), seedable per-NPC
@@ -446,10 +490,8 @@
         NPCS.forEach(n => {
           if (!n._wasZero && n.isZero()) {
             n._wasZero = true;
-            if (!USER.isZero()) endRun(){
-              n.finishedBeforeUser = true;
+            if (!USER.isZero()) n.finishedBeforeUser = true;
             }
-          }
         });
 
         updateUI();
