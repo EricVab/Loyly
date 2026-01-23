@@ -954,7 +954,7 @@
       if (info) {
         if (GameState.isOneOf(['menu', 'win', 'lose'])) {
           const passiveBonus = computePassiveBaseStaminaFromWins(winCount);
-          info.textContent = 'Base Stamina +' + ${passiveBonus} + ' next round';
+          info.textContent = 'Base Stamina +' + passiveBonus + ' next round';
         } else {
           info.textContent = '';
         }
