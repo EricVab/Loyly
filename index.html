@@ -118,6 +118,10 @@
         // Example: 1.0 => must press Exit when remaining time is > 1.0s.
         TOLERANCE_S: 1.0
       },
+      PROGRESSION: {
+        //Passive Base stamina increase based on number of win states
+        Z: 4.472135955
+      }
 
       USER: {
         MAX_STAMINA: 100,           // starting & cap for user stamina
@@ -248,6 +252,16 @@
       PLUNGE: 0,
       XRAY: 0
     };
+
+    function loadWinCount() {
+      const raw = localStorage.getItem(WIN_STORAGE_KEY);
+      const val = raw ? Number(raw) : NaN;
+      winCount = Number.isFinite(val) ? val : 0;
+    }
+
+    function saveWinCount() {
+      localStorage.setItem(WIN_STORAGE_KEY,String(winCount));
+    }
 
     function loadCoins() {
       if (!CONFIG.ECONOMY.PERSIST_COINS) return;
@@ -434,6 +448,9 @@
 
     let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
     let effects, USER, NPCS;
+    //Tootal number of wins achieved
+    let winCount = 0;
+    const WIN_STORAGE_KEY = 'winst_total';
 
     /* ------------------------------------------------------------
        Initialization
@@ -454,7 +471,10 @@
       effects = new TimedEffects();
 
       USER = new Actor(CONFIG.USER.MAX_STAMINA, CONFIG.USER.BASE_TICK_SPEED, CONFIG.USER.DISPLAY_DECIMALS);
-
+      const passiveBonus = computePassiveBaseStaminaFromWins(winCount);
+      USER.max += passiveBonus;
+      USER.value += passiveBonus;
+      USER.cap();
       const npcSteps = CONFIG.NPC.STAMINA_STEPS;
       NPCS = Array.from({ length: CONFIG.NPC.COUNT }).map(() => {
         const stepIdx = randIntRange(rngNpcInit, 0, npcSteps.length - 1);
@@ -474,6 +494,7 @@
       loadCoins();
       initRNGs();
       initRun();
+      loadWinCount();
       GameState.set(CONFIG.STATE.START);
       userEnded = false;
       running = false;
@@ -510,6 +531,12 @@
     function computePotentialReward() {
       return NPCS.reduce((acc, n) => acc + (n.finishedBeforeUser ? 1 : 0), 0);
     }
+    
+    function computePassiveBaseStaminaFromWins(x) {
+      const z = CONFIG.PROGRESSION.Z;
+      const y = Math.pow(x / z, 2);
+      return Math.floor(y);
+    }
 
     function winRun() {
       if (!GameState.is('playing')) return;
@@ -517,6 +544,8 @@
       coins += reward;
       saveCoins();
       updateEconomyUI();
+      winCount += 1;
+      saveWinCount;
       endRunTo('win', reward > 0 ? `win (+${reward} coins)` : 'win');
     }
 
@@ -923,8 +952,9 @@
       // Potential reward
       const info = document.getElementById('run-info');
       if (info) {
-        if (GameState.is('playing')) {
-          info.textContent = `Potential reward: ${computePotentialReward()} · Exit> ${CONFIG.EXIT.TOLERANCE_S.toFixed(2)}s`;
+        if (GameState.isOneOf(['menu', 'win', 'lose'])) {
+          const passiveBonus = computePassiveBaseStaminaFromWins(winCount);
+          info.textContent = 'Base Stamina +${passiveBonus} next round';
         } else {
           info.textContent = '';
         }
