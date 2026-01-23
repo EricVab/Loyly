@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Decrease Numbers</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+        }
+        .number {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Me</h1>
+
+    <div class="number" id="me">0</div>
+
+    <h1>NPCs</h1>
+    <div class="number" id="npc1">0</div>
+    <div class="number" id="npc2">0</div>
+
+    <h1>Time counter</h1>
+    <div id="counter">30</div>
+
+    <button id="throw-water-btn">Pour Water</button>
+    <button id="start-game-btn">Start Game</button>
+
+    <h1>Powerups</h1>
+    <div class="number" id="powerup1">Hat</div>
+
+    <script src="EventEmitter.js"></script>
+    <script src="MiniGameManager.js"></script>
+    <script src="Player.js"></script>
+    <script src="GameManager.js"></script>
+    <script src="UIController.js"></script>
+    <script src="main.js"></script>
+
+
+    <!-- <script>
+        function pourWater() {
+            const me_id = "me";
+            const ids = ["npc1", "npc2"];
+
+            
+            ids.forEach(id => {
+                const element = document.getElementById(id);
+                let value = parseInt(element.textContent, 10);
+
+                const randomvalue = Math.floor(Math.random() * 3) + 1; // Random value between 1 and 3
+
+                if (value <= 0 || value - randomvalue < 0) {
+                    element.textContent = 0;
+                    return;
+                }
+
+                element.textContent = value - randomvalue;
+            });
+        }
+    </script>
+
+    <script>
+        function startGame() {
+            
+            const ids = ["me", "npc1", "npc2"];
+            ids.forEach(id => {
+                const randomvalue = Math.floor(Math.random() * 30) + 10;
+                document.getElementById(id).textContent = randomvalue;
+            });
+            setInterval(doSomething, 2000);
+        }
+    </script>
+
+
+    <script>
+        const timer = setInterval(() => {
+            const ids = ["me", "npc1", "npc2"];
+                ids.forEach(id => {
+                    let value = parseInt(document.getElementById(id).textContent, 10);
+                    if (value <= 1) {
+                        document.getElementById(id).textContent = 0;
+                        return;
+                    }
+                    document.getElementById(id).textContent = value - 1;
+                });
+                if (parseInt(document.getElementById("counter").textContent, 10) == 0) {
+                        clearInterval(timer);
+                } else {
+                    let counterValue = parseInt(document.getElementById("counter").textContent, 10);
+                    document.getElementById("counter").textContent = counterValue - 1;
+                }
+        }, 1000);
+    </script>
+
+
+    <script>
+        function doSomething() {
+            console.log("This runs every 2 seconds");
+        }
+    </script> -->
+
+
+</body>
+</html>
