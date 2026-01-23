@@ -92,6 +92,16 @@
       gap: 12px;
       align-items: baseline;
     }
+
+    /* XRAY transparency (NPC value + bar only) */
+    .npc-scan {
+      opacity: 0;
+      transition: opacity 180ms ease-in-out;
+    }
+
+    body.xray-on .npc-scan {
+      opacity: 1;
+    }
   </style>
 
   <script>
@@ -103,6 +113,12 @@
         START: 'menu'
       },
 
+      EXIT: {
+        // You must exit with > this many seconds remaining on the USER timer.
+        // Example: 1.0 => must press Exit when remaining time is > 1.0s.
+        TOLERANCE_S: 1.0
+      },
+
       USER: {
         MAX_STAMINA: 100,           // starting & cap for user stamina
         BASE_TICK_SPEED: 3,         // default stamina drain speed [units per second]
@@ -111,7 +127,7 @@
 
       NPC: {
         COUNT: 5,                   // how many NPCs to spawn
-        STAMINA_STEPS: [50, 100, 150], // NPC max stamina chosen from these
+        STAMINA_STEPS: [50, 100, 150, 250], // NPC max stamina chosen from these
         BASE_TICK_SPEED: 3,         // NPC drain speed [units per second]
         DISPLAY_DECIMALS: 0
       },
@@ -145,7 +161,15 @@
         },
 
         ICE_CREAM: {
-          AMOUNT: 80        // "Ice Cream" button amount
+          AMOUNT: 40
+        },
+
+        PLUNGE: {
+          BONUS_BASE_STAMINA: 100 // permanently increases user's max stamina for the run
+        },
+
+        XRAY: {
+          DURATION_S: 10
         },
 
         HAT: {
@@ -162,21 +186,25 @@
       },
 
       ITEMS: {
-        WATER: { price: 1 },
-        BEER: { price: 1 },
-        ICE_CREAM: { price: 1 },
-        HAT: { price: 1 },
-        WOOD: { price: 1 }
+        WATER: { price: 0 },
+        BEER: { price: 5 },
+        ICE_CREAM: { price: 5 },
+        HAT: { price: 10 },
+        WOOD: { price: 5 },
+        PLUNGE: { price: 5 },
+        XRAY: { price: 5 }
       },
 
       DELAYS: {
         // "Delay" modifier: disable button after pressing for this many seconds
-        WATER: 1,
-        BEER: 1,
-        ICE_CREAM: 1,
-        HAT: 1,
+        WATER: 0.1,
+        BEER: 5,
+        ICE_CREAM: 10,
+        HAT: 15,
         WOOD: 1,
-        BIRCH: 1,
+        PLUNGE: 0,
+        XRAY: 10,
+        BIRCH: 0.1,
         RESET: 0,
         EXIT: 0
       },
@@ -216,7 +244,9 @@
       BEER: 0,
       ICE_CREAM: 0,
       HAT: 0,
-      WOOD: 0
+      WOOD: 0,
+      PLUNGE: 0,
+      XRAY: 0
     };
 
     function loadCoins() {
@@ -240,8 +270,14 @@
       return GameState.isOneOf(['menu', 'win', 'lose']);
     }
 
+    function canBuyItemInCurrentState(itemKey) {
+      // Plunge is special: can ONLY be purchased in menu state.
+      if (itemKey === 'PLUNGE') return GameState.is('menu');
+      return isShopOpenState();
+    }
+
     function buyItem(itemKey) {
-      if (!isShopOpenState()) return;
+      if (!canBuyItemInCurrentState(itemKey)) return;
       if (!canAfford(itemKey)) return;
       coins -= CONFIG.ITEMS[itemKey].price;
       inventory[itemKey] += 1;
@@ -302,22 +338,6 @@
         this.effects.push(eff);
       }
 
-      isActive(key) {
-        const t = this.now();
-        return this.effects.some(e => e.key === key && e.until > t);
-      }
-
-      getRemainingMax(key) {
-        const t = this.now();
-        let maxLeft = 0;
-        this.effects.forEach(e => {
-          if (e.key === key && e.until > t) {
-            maxLeft = Math.max(maxLeft, e.until - t);
-          }
-        });
-        return maxLeft;
-      }
-
       purgeExpired() {
         const t = this.now();
         this.effects = this.effects.filter(e => {
@@ -329,12 +349,26 @@
         });
       }
 
+      getRemainingMax(exactKey) {
+        const t = this.now();
+        let maxLeft = 0;
+        this.effects.forEach(e => {
+          if (e.key === exactKey && e.until > t) {
+            maxLeft = Math.max(maxLeft, e.until - t);
+          }
+        });
+        return maxLeft;
+      }
       // Utility: sum remaining time for effects whose key starts with a prefix
-      sumRemainingByPrefix(prefix) {
+            sumRemainingByPrefix(prefix) {
         const t = this.now();
         return this.effects
           .filter(e => String(e.key).startsWith(prefix) && e.until > t)
           .reduce((acc, e) => acc + (e.until - t), 0);
+      }
+
+      isPrefixActive(prefix) {
+        return this.sumRemainingByPrefix(prefix) > 0;
       }
     }
 
@@ -401,9 +435,6 @@
     let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
     let effects, USER, NPCS;
 
-    // last computed reward (only applied on WIN)
-    let lastPotentialReward = 0;
-
     /* ------------------------------------------------------------
        Initialization
        ------------------------------------------------------------ */
@@ -421,6 +452,7 @@
     function initRun() {
       // Create fresh actors/effects for a new run
       effects = new TimedEffects();
+
       USER = new Actor(CONFIG.USER.MAX_STAMINA, CONFIG.USER.BASE_TICK_SPEED, CONFIG.USER.DISPLAY_DECIMALS);
 
       const npcSteps = CONFIG.NPC.STAMINA_STEPS;
@@ -436,7 +468,6 @@
 
       // Reset time base
       lastTs = performance.now();
-      lastPotentialReward = 0;
     }
 
     function initGame() {
@@ -476,27 +507,22 @@
       updateUI();
     }
 
+    function computePotentialReward() {
+      return NPCS.reduce((acc, n) => acc + (n.finishedBeforeUser ? 1 : 0), 0);
+    }
+
     function winRun() {
       if (!GameState.is('playing')) return;
-
-      // Compute reward based on NPCs who finished before user
       const reward = computePotentialReward();
-      lastPotentialReward = reward;
-
-      // Apply reward only on WIN
       coins += reward;
       saveCoins();
       updateEconomyUI();
-
       endRunTo('win', reward > 0 ? `win (+${reward} coins)` : 'win');
     }
 
-    function loseRun() {
+    function loseRun(reason = 'lose') {
       if (!GameState.is('playing')) return;
-      // No coins applied on lose
-      const reward = computePotentialReward();
-      lastPotentialReward = reward;
-      endRunTo('lose', 'lose');
+      endRunTo('lose', reason);
     }
 
     function resetRun() {
@@ -518,9 +544,8 @@
     function syncUIState() {
       const inPlaying = GameState.is('playing');
       const inShop = isShopOpenState();
-
       // Action buttons are only active while playing
-      ['action-btn', 'beer-btn', 'icecream-btn', 'hat-btn', 'wood-btn'].forEach(id => {
+      ['action-btn', 'beer-btn', 'icecream-btn', 'hat-btn', 'wood-btn', 'plunge-btn', 'xray-btn'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = !inPlaying;
       });
@@ -539,7 +564,10 @@
         btn.disabled = !inShop;
       });
 
-      // Go In only active in menu-like states
+      // Enforce the special purchasing rule for Plunge
+      const buyPlunge = document.getElementById('buy-plunge');
+      if (buyPlunge) buyPlunge.disabled = !GameState.is('menu');
+
       const go = document.getElementById('go-btn');
       if (go) go.disabled = !inShop;
 
@@ -551,7 +579,7 @@
     /* ------------------------------------------------------------
        DOM helpers & buttons
        ------------------------------------------------------------ */
-    let $btnWater, $btnBeer, $btnIceCream, $btnHat, $btnWood, $btnExit, $btnReset;
+    let $btnWater, $btnBeer, $btnIceCream, $btnHat, $btnWood, $btnPlunge, $btnXray, $btnExit, $btnReset;
 
     function bindStaticButtons() {
       $btnWater = document.getElementById('action-btn');
@@ -559,6 +587,8 @@
       $btnIceCream = document.getElementById('icecream-btn');
       $btnHat = document.getElementById('hat-btn');
       $btnWood = document.getElementById('wood-btn');
+      $btnPlunge = document.getElementById('plunge-btn');
+      $btnXray = document.getElementById('xray-btn');
       $btnExit = document.getElementById('exit-btn');
       $btnReset = document.getElementById('reset-btn');
 
@@ -567,9 +597,11 @@
       $btnIceCream.addEventListener('click', () => withDelay($btnIceCream, CONFIG.DELAYS.ICE_CREAM, onIceCream));
       $btnHat.addEventListener('click', () => withDelay($btnHat, CONFIG.DELAYS.HAT, onHat));
       $btnWood.addEventListener('click', () => withDelay($btnWood, CONFIG.DELAYS.WOOD, onWood));
+      $btnPlunge.addEventListener('click', () => withDelay($btnPlunge, CONFIG.DELAYS.PLUNGE, onPlunge));
+      $btnXray.addEventListener('click', () => withDelay($btnXray, CONFIG.DELAYS.XRAY, onXray));
 
-      // Exit (no price / inventory)
-      $btnExit.addEventListener('click', () => withDelay($btnExit, CONFIG.DELAYS.EXIT, winRun));
+      // Exit: win only if remaining time is above tolerance
+      $btnExit.addEventListener('click', () => withDelay($btnExit, CONFIG.DELAYS.EXIT, attemptExit));
 
       $btnReset.addEventListener('click', () => withDelay($btnReset, CONFIG.DELAYS.RESET, resetRun));
 
@@ -579,9 +611,11 @@
       // Shop
       document.getElementById('buy-water').addEventListener('click', () => buyItem('WATER'));
       document.getElementById('buy-beer').addEventListener('click', () => buyItem('BEER'));
+      document.getElementById('buy-wood').addEventListener('click', () => buyItem('WOOD'));
       document.getElementById('buy-icecream').addEventListener('click', () => buyItem('ICE_CREAM'));
       document.getElementById('buy-hat').addEventListener('click', () => buyItem('HAT'));
-      document.getElementById('buy-wood').addEventListener('click', () => buyItem('WOOD'));
+      document.getElementById('buy-plunge').addEventListener('click', () => buyItem('PLUNGE'));
+      document.getElementById('buy-xray').addEventListener('click', () => buyItem('XRAY'));
     }
 
     function withDelay(buttonEl, delayS, fn) {
@@ -606,10 +640,10 @@
         node.innerHTML = `
           <div>
             <strong>NPC ${i + 1}:</strong>
-            <span class="npc-value">${npc.asText()}</span>
+            <span class="npc-value npc-scan">${npc.asText()}</span>
             <span class="tag">(max ${npc.max})</span>
           </div>
-          <div class="bar-container">
+          <div class="bar-container npc-scan">
             <div class="bar npc-bar" style="width:${npc.percent()}%"></div>
           </div>
           <div class="row">
@@ -633,7 +667,7 @@
        Effect application helpers
        ------------------------------------------------------------ */
     function applyHatMultiplier(value, isUser) {
-      const hatActive = effects.isActive('hat');
+      const hatActive = effects.getRemainingMax('hat') > 0;
       const cfg = CONFIG.EFFECTS.HAT;
       if (!hatActive) return value;
       if (cfg.AFFECTS_USER_ONLY && !isUser) return value;
@@ -650,14 +684,15 @@
       });
     }
 
-    function computePotentialReward() {
-      // Potential reward is # of NPCs that finished before user
-      return NPCS.reduce((acc, n) => acc + (n.finishedBeforeUser ? 1 : 0), 0);
-    }
-
     function applySpeedDeltaToUserAndNpcs(delta) {
       USER.addSpeed(delta);
       NPCS.forEach(n => n.addSpeed(delta));
+    }
+
+    function remainingUserTimeS() {
+      // Remaining time in seconds, based on current tick speed
+      const speed = Math.max(1e-9, USER.tickSpeed);
+      return USER.value / speed;
     }
 
     /* ------------------------------------------------------------
@@ -738,6 +773,28 @@
       updateUI();
     }
 
+    function onPlunge() {
+      if (!consumeItem('PLUNGE')) return;
+
+      const { BONUS_BASE_STAMINA } = CONFIG.EFFECTS.PLUNGE;
+      // Increase max and current by the same amount (permanent for this run)
+      USER.max += BONUS_BASE_STAMINA;
+      USER.value += BONUS_BASE_STAMINA;
+      USER.cap();
+      updateUI();
+    }
+
+    function onXray() {
+      if (!consumeItem('XRAY')) return;
+
+      const { DURATION_S } = CONFIG.EFFECTS.XRAY;
+      effects.add({
+        key: `xray:${Math.random()}`,
+        durationS: DURATION_S
+      });
+      updateUI();
+    }
+
     function onHat() {
       if (!consumeItem('HAT')) return;
 
@@ -762,7 +819,25 @@
     }
 
     /* ------------------------------------------------------------
-       Animation loop (smooth ticking) & win/lose logic
+       Exit logic with tolerance
+       ------------------------------------------------------------ */
+    function attemptExit() {
+      if (!GameState.is('playing')) return;
+
+      const remaining = remainingUserTimeS();
+      const tol = CONFIG.EXIT.TOLERANCE_S;
+
+      // Must exit strictly above tolerance.
+      if (remaining > tol) {
+        winRun();
+      } else {
+        // Attempted exit too late => lose immediately
+        loseRun('exit too late');
+      }
+    }
+
+    /* ------------------------------------------------------------
+       Loop & end conditions
        ------------------------------------------------------------ */
     function loop(ts) {
       const dt = (ts - lastTs) / 1000;
@@ -800,8 +875,7 @@
       if (USER.isZero()) {
         userEnded = true;
         running = false;
-        // Lose state: no coin payout
-        loseRun();
+        loseRun('lose');
       }
     }
 
@@ -809,6 +883,10 @@
        UI updates
        ------------------------------------------------------------ */
     function updateUI() {
+      // XRAY toggles NPC scan visibility via body class
+      const xrayActive = effects ? effects.isPrefixActive('xray:') : false;
+      document.body.classList.toggle('xray-on', xrayActive);
+
       // User UI
       document.getElementById('user-value').textContent = USER.asText();
       document.getElementById('user-bar').style.width = `${USER.percent()}%`;
@@ -816,11 +894,13 @@
       // Active effect tags
       const beerLeft = effects ? effects.sumRemainingByPrefix('beer:') : 0;
       const woodLeft = effects ? effects.sumRemainingByPrefix('wood:') : 0;
+      const xrayLeft = effects ? effects.sumRemainingByPrefix('xray:') : 0;
       const hatLeft = effects ? effects.getRemainingMax('hat') : 0;
 
       const tags = [];
       if (beerLeft > 0) tags.push(`Beer: ~${beerLeft.toFixed(0)}s`);
       if (woodLeft > 0) tags.push(`Wood: ~${woodLeft.toFixed(0)}s`);
+      if (xrayLeft > 0) tags.push(`Xray: ~${xrayLeft.toFixed(0)}s`);
       if (hatLeft > 0) tags.push(`Hat: ${hatLeft.toFixed(0)}s`);
       document.getElementById('effect-tags').textContent = tags.join(' · ');
 
@@ -829,21 +909,22 @@
       NPCS.forEach((npc, i) => {
         const node = npcNodes[i];
         if (!node) return;
+
+        // Only update the hidden elements too (so they are correct when revealed)
         node.querySelector('.npc-value').textContent = npc.asText();
         node.querySelector('.npc-bar').style.width = `${npc.percent()}%`;
+
         if (npc.isZero()) node.querySelector('.npc-status').textContent = 'win';
       });
 
       // Speed hint
       document.getElementById('speed-tag').textContent = `Speed: ${USER.tickSpeed.toFixed(2)}/s`;
 
-      // Optional: show potential reward while playing (doesn't add coins yet)
-      const potential = computePotentialReward();
-      const state = GameState.current;
+      // Potential reward
       const info = document.getElementById('run-info');
       if (info) {
-        if (state === 'playing') {
-          info.textContent = `Potential reward: ${potential}`;
+        if (GameState.is('playing')) {
+          info.textContent = `Potential reward: ${computePotentialReward()} · Exit> ${CONFIG.EXIT.TOLERANCE_S.toFixed(2)}s`;
         } else {
           info.textContent = '';
         }
@@ -894,6 +975,8 @@
         <button id="beer-btn">Beer</button>
         <button id="wood-btn">Wood</button>
         <button id="icecream-btn">Ice Cream</button>
+        <button id="plunge-btn">Plunge</button>
+        <button id="xray-btn">Xray</button>
         <button id="hat-btn">Hat</button>
         <button id="exit-btn">Exit</button>
         <button id="reset-btn">Reset</button>
@@ -915,6 +998,8 @@
       <button id="buy-wood" class="shop-btn">Buy Wood</button>
       <button id="buy-icecream" class="shop-btn">Buy Ice Cream</button>
       <button id="buy-hat" class="shop-btn">Buy Hat</button>
+      <button id="buy-plunge" class="shop-btn">Buy Plunge</button>
+      <button id="buy-xray" class="shop-btn">Buy Xray</button>
     </div>
 
     <div class="row tag">
@@ -922,6 +1007,8 @@
       Beer: <span id="inv-BEER">0</span>
       Wood: <span id="inv-WOOD">0</span>
       Ice Cream: <span id="inv-ICE_CREAM">0</span>
+      Plunge: <span id="inv-PLUNGE">0</span>
+      Xray: <span id="inv-XRAY">0</span>
       Hat: <span id="inv-HAT">0</span>
     </div>
 
@@ -936,11 +1023,40 @@
   <div class="panel small">
     <strong>Notes for editing:</strong>
     <ul>
-      <li>Edit all numbers at the top in <code>CONFIG</code> (ranges, seeds, speeds, durations, delays, prices).</li>
-      <li>Shop is available in <code>menu</code>, <code>win</code>, and <code>lose</code> states.</li>
-      <li><strong>Exit</strong> ends the run in a <code>win</code> state and pays out the potential reward in coins.</li>
-      <li>If the user reaches 0 stamina before exiting, the run ends in a <code>lose</code> state and pays out <strong>no</strong> coins.</li>
-      <li><strong>Wood</strong> increases tick drain speed by +1 for both user and NPCs for a duration (stackable), and consumes Wood inventory.</li>
+      <li>Go in the sauna and try to outlast all other NPCs.</li>
+      <li>Remember to exit the sauna before your stamina runs out or you will faint!</li>
+      <li>Outlasting other NPCs will give you money which you can spend on items in the store.</li>
+      <li>Smacking NPCs with a birch whisk will lower their stamina and is free!</li>
+      <table>
+        <tr>
+          <th>Item</th>
+          <th>Effect</th>
+        </tr>
+        <tr>
+          <td>Water</td>
+          <td>Throw water on the hot coals, everyone in the sauna takes a random amount of damage</td>
+        </tr>
+        <tr>
+          <td>Beer</td>
+          <td>Drink beer to make you numb and lower your stamina drain rate</td>
+        </tr>
+        <tr>
+          <td>Wood</td>
+          <td>Add wood to the stove increasing the temperaturue in the sauna, increases stamina drain rate for all</td>
+        </tr>
+        <tr>
+          <td>Ice Cream</td>
+          <td>Cold treat in the sauna to restore your stamina</td>
+        </tr>
+        <tr>
+          <td>Hat</td>
+          <td>Wear a proper sauna hat, you take less damage when throwing water on the stones</td>
+        </tr>
+        <tr>
+          <td>Plunge</td>
+          <td>Take a cold plunge before entering the sauna, increases your stamina before entering the sauna</td>
+        </tr>
+      </table>
     </ul>
   </div>
 </body>
