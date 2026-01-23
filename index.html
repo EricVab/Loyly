@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>POCv4</title>
+  <title>POCv5</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root {
@@ -126,8 +126,8 @@
       },
 
       NPC: {
-        COUNT: 5,                   // how many NPCs to spawn
-        STAMINA_STEPS: [50, 100, 150, 250], // NPC max stamina chosen from these
+        COUNT: 8,                   // how many NPCs to spawn
+        STAMINA_STEPS: [90, 100, 120, 250], // NPC max stamina chosen from these
         BASE_TICK_SPEED: 3,         // NPC drain speed [units per second]
         DISPLAY_DECIMALS: 0
       },
@@ -204,7 +204,7 @@
         WOOD: 0.5,
         PLUNGE: 0,
         XRAY: 10,
-        BIRCH: 0.1,
+        BIRCH: 1,
         RESET: 0,
         EXIT: 0
       },
@@ -1021,7 +1021,7 @@
   <div id="npcs" class="stack"></div>
 
   <div class="panel small">
-    <strong>Notes for editing:</strong>
+    <strong>How to play:</strong>
     <ul>
       <li>Go in the sauna and try to outlast all other NPCs.</li>
       <li>Remember to exit the sauna before your stamina runs out or you will faint!</li>
