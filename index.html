@@ -190,8 +190,8 @@
         BEER: { price: 5 },
         ICE_CREAM: { price: 5 },
         HAT: { price: 10 },
-        WOOD: { price: 5 },
-        PLUNGE: { price: 5 },
+        WOOD: { price: 0 },
+        PLUNGE: { price: 2 },
         XRAY: { price: 5 }
       },
 
@@ -201,7 +201,7 @@
         BEER: 5,
         ICE_CREAM: 10,
         HAT: 15,
-        WOOD: 1,
+        WOOD: 0.5,
         PLUNGE: 0,
         XRAY: 10,
         BIRCH: 0.1,
@@ -641,7 +641,7 @@
           <div>
             <strong>NPC ${i + 1}:</strong>
             <span class="npc-value npc-scan">${npc.asText()}</span>
-            <span class="tag">(max ${npc.max})</span>
+            <span class="tag npc-scan">(max ${npc.max})</span>
           </div>
           <div class="bar-container npc-scan">
             <div class="bar npc-bar" style="width:${npc.percent()}%"></div>
@@ -1030,31 +1030,43 @@
       <table>
         <tr>
           <th>Item</th>
+          <th>Price</th>
           <th>Effect</th>
         </tr>
         <tr>
           <td>Water</td>
+          <th>Free</th>
           <td>Throw water on the hot coals, everyone in the sauna takes a random amount of damage</td>
         </tr>
         <tr>
           <td>Beer</td>
+          <th>5</th>
           <td>Drink beer to make you numb and lower your stamina drain rate</td>
         </tr>
         <tr>
           <td>Wood</td>
+          <th>Free</th>
           <td>Add wood to the stove increasing the temperaturue in the sauna, increases stamina drain rate for all</td>
         </tr>
         <tr>
           <td>Ice Cream</td>
+          <th>5</th>
           <td>Cold treat in the sauna to restore your stamina</td>
         </tr>
         <tr>
           <td>Hat</td>
+          <th>10</th>
           <td>Wear a proper sauna hat, you take less damage when throwing water on the stones</td>
         </tr>
         <tr>
           <td>Plunge</td>
+          <th>2</th>
           <td>Take a cold plunge before entering the sauna, increases your stamina before entering the sauna</td>
+        </tr>
+        <tr>
+          <td>Xray</td>
+          <th>5</th>
+          <td>Allows you to seee the remaining stamina of other NPCs</td>
         </tr>
       </table>
     </ul>
