@@ -3,7 +3,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Stamina Counters (Modular POC)</title>
+  <title><POCv0 class="2"></POCv0></title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     :root{
@@ -233,6 +233,19 @@
     initRun();
     }
 
+    function resetRun(){
+      // Restart the current run (does not reset wins)
+      userEnded = false;
+      running = GameState.is('playing');
+      if ($statusLine) $statusLine.textContent = '';
+      NPCS?.forEach(n=>n.resetFlags?.());
+      initRun();
+      buildNPCsDOM();
+      togglePrimaryButtons(GameState.is('playing'));
+      updateUI();
+      syncUIState();
+    }
+
     /* ------------------------------------------------------------
        Game State & UI wiring
        ------------------------------------------------------------ */
@@ -303,6 +316,7 @@
     ------------------------------------------------------------ */
     function syncUIState(){
       const inMenu = GameState.is('menu');
+      // Primary action buttons
       ['action-btn','beer-btn','stamina-btn','hat-btn'].forEach(id=>{
         const el=document.getElementById(id);
         if(el) el.disabled = inMenu;
@@ -378,19 +392,6 @@
         const idx = parseInt(btn.dataset.idx, 10);
         btn.addEventListener('click', () => withDelay(btn, CONFIG.DELAYS.BIRCH, () => onBirch(idx)));
       });
-    }
-
-    function resetRun() {
-      // Restart the current run (does not reset wins)
-      userEnded = false;
-      running = GameState.is('playing');
-      if ($statusLine) $statusLine.textContent = '';
-      NPCS?.forEach(n=>n.resetFlags?.());
-      initRun();
-      buildNPCsDOM();
-      togglePrimaryButtons(GameState.is('playing'));
-      updateUI();
-      syncUIState();
     }
 
     /* ------------------------------------------------------------
@@ -563,9 +564,11 @@
     document.addEventListener('DOMContentLoaded', () => {
       // init RNGs & game
       initRNGs();
+      // bind user-facing UI (needed before initGame() uses $statusLine)
+      bindStaticButtons();
+      // init game
       initGame();
       // bind user-facing UI
-      bindStaticButtons();
       buildNPCsDOM();
       // initial paint & wins
       updateWinsUI();
