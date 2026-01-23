@@ -89,6 +89,7 @@
         HAT: 30,
         BIRCH: 0.1,
         RESET: 0
+      };
     };
     /* ===================== end CONFIG ===================== */
 
@@ -209,11 +210,12 @@
       isZero() { return this.value <= 0; }
       resetFlags() { this._wasZero = false; this.finishedBeforeUser = false; }
     }
-    let USER, NPCS = [];
+    //let USER, NPCS = [];
     let lastTs = performance.now();
     let running = false;
     let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
     let effects, USER, NPCS;
+    let userEnded = false;
     /* ------------------------------------------------------------
        Game State & UI wiring
        ------------------------------------------------------------ */
@@ -429,9 +431,6 @@
     /* ------------------------------------------------------------
        Animation loop (smooth ticking) & win logic
        ------------------------------------------------------------ */
-    let running = true;
-    let userEnded = false;
-    let lastTs = performance.now();
 
     function loop(ts) {
       const dt = (ts - lastTs) / 1000; // seconds
@@ -534,13 +533,12 @@
       syncUIState();
       updateEconomyUI();
     });
-
   </script>
 </head>
 <body>
   <div class="section-header">
     <h2>User</h2>
-    <div class="tag">Wins: <strong id="wins-count">0</strong></div>
+    Coins: <strong id="coins">0</strong>
   </div>
 
   <div class="stack">
@@ -565,7 +563,6 @@
   </div>
 
   <div class="panel">
-    Coins: <strong id="coins">0</strong>
     <div class="row">
       <button onclick="buyItem('WATER')">Buy Water</button>
       <button onclick="buyItem('BEER')">Buy Beer</button>
