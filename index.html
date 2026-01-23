@@ -63,7 +63,7 @@
           SPEED_DELTA: -1,  // additive change to user tick speed (e.g., -1 => 3/s -> 2/s)
           DURATION_S: 10
         },
-        STAMINA_POTION: {
+        ICE_CREAM: {
           AMOUNT: 80        // "+80 Stamina" button amount
         },
         HAT: {
@@ -89,11 +89,6 @@
         HAT: 30,
         BIRCH: 0.1,
         RESET: 0
-      },
-      UI: {
-        DISABLE_BUTTONS_AT_ZERO: true, // lock inputs when user reaches 0 (Reset stays enabled)
-        PERSIST_WINS: true             // store wins in localStorage across page reloads
-      }
     };
     /* ===================== end CONFIG ===================== */
 
@@ -101,12 +96,12 @@
     Game State
     ------------------------------------------------------------ */
     const GameState = {
-    current: CONFIG.STATE.START,
-    set(state){
+      current: CONFIG.STATE.START,
+      set(state){
         this.current = state;
         syncUIState();
-    },
-    is(state){ return this.current === state; }
+      },
+      is(state){ return this.current === state; }
     };
 
     /* ------------------------------------------------------------
@@ -114,26 +109,26 @@
     ------------------------------------------------------------ */
     let coins = CONFIG.ECONOMY.STARTING_COINS;
     const inventory = {
-        WATER:0,
-        BEER:0,
-        ICE_CREAM:0,
-        HAT:0
+      WATER:0,
+      BEER:0,
+      ICE_CREAM:0,
+      HAT:0
     };
     function canAfford(item){
-        return coins >= CONFIG.ITEMS[item].price;
+      return coins >= CONFIG.ITEMS[item].price;
     }
     function buyItem(item){
-        if (!GameState.is('menu')) return;
-        if (!canAfford(item)) return;
-        coins -= CONFIG.ITEMS[item].price;
-        inventory[item]++;
-        updateEconomyUI();
+      if (!GameState.is('menu')) return;
+      if (!canAfford(item)) return;
+      coins -= CONFIG.ITEMS[item].price;
+      inventory[item]++;
+      updateEconomyUI();
     }
     function consumeItem(item){
-        if (inventory[item] <= 0) return false;
-        inventory[item]--;
-        updateEconomyUI();
-        return true;
+      if (inventory[item] <= 0) return false;
+      inventory[item]--;
+      updateEconomyUI();
+      return true;
     }
     /* ------------------------------------------------------------
        Seedable PRNG utilities (deterministic randoms per feature)
@@ -214,19 +209,15 @@
       isZero() { return this.value <= 0; }
       resetFlags() { this._wasZero = false; this.finishedBeforeUser = false; }
     }
-
+    let USER, NPCS = [];
+    let lastTs = performance.now();
+    let running = false;
+    let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
+    let effects, USER, NPCS;
     /* ------------------------------------------------------------
        Game State & UI wiring
        ------------------------------------------------------------ */
-    let rngUserClick, rngNpcClick, rngNpcInit, rngBirchPerNpc;
-    let effects, USER, NPCS;
-
     // Wins counter (does not reset on "Reset" button)
-    let wins = 0;
-    if (CONFIG.UI.PERSIST_WINS) {
-      const stored = localStorage.getItem('wins_total');
-      wins = stored ? parseInt(stored, 10) || 0 : 0;
-    }
 
     function initRNGs() {
       rngUserClick = mulberry32(CONFIG.SEEDS.USER_CLICK);
@@ -251,87 +242,72 @@
         npc.value = max;
         return npc;
       });
+      lastTs = performance.now();
     }
 
     /* ------------------------------------------------------------
     Main Loop
     ------------------------------------------------------------ */
     function loop(ts){
-        const dt = (ts - lastTs)/1000;
-        lastTs = ts;
+      const dt = (ts - lastTs)/1000;
+      lastTs = ts;
 
-        if (running && GameState.is('playing')) {
-            USER.tick(dt);
-            NPCS.forEach(n=>n.tick(dt));
-            if (USER.isZero()) endRun();
-            updateUI();
-        }
-        requestAnimationFrame(loop);
+      if (running && GameState.is('playing')) {
+        USER.tick(dt);
+        NPCS.forEach(n=>n.tick(dt));
+        if (USER.isZero()) endRun();
+        updateUI();
+      }
+      requestAnimationFrame(loop);
     }
 
     /* ------------------------------------------------------------
     State Transitions
     ------------------------------------------------------------ */
     function startRun(){
-        initRun();
-        running = true;
-        GameState.set('playing');
+      initRun();
+      running = true;
+      GameState.set('playing');
     }
     function endRun(){
-        running = false;
-        GameState.set('menu');
+      running = false;
+      GameState.set('menu');
     }
 
     /* ------------------------------------------------------------
     Actions (consume inventory)
     ------------------------------------------------------------ */
     function useWater(){
-        if (!consumeItem('WATER')) return;
-        USER.add(-10);
+      if (!consumeItem('WATER')) return;
+      USER.add(-10);
     }
     function useBeer(){
-        if (!consumeItem('BEER')) return;
+     if (!consumeItem('BEER')) return;
     }
     function useIceCream(){
-        if (!consumeItem('ICE_CREAM')) return;
-        USER.add(CONFIG.EFFECTS.ICE_CREAM.STAMINA);
+      if (!consumeItem('ICE_CREAM')) return;
+      USER.add(CONFIG.EFFECTS.ICE_CREAM.STAMINA);
     }
-
-    function resetRun() {
-      // Reset run while preserving 'wins'
-      initRNGs();
-      initGame();
-      // Rebuild NPC DOM (safer than reusing)
-      buildNPCsDOM();
-      running = true;
-      userEnded = false;
-      lastTs = performance.now();
-      document.getElementById('time-up').textContent = '';
-      togglePrimaryButtons(true); // enable action buttons
-      updateWinsUI();
-      updateUI();
-    }
-
     
     /* ------------------------------------------------------------
     UI Sync
     ------------------------------------------------------------ */
     function syncUIState(){
-        const inMenu = GameState.is('menu');
-        document.querySelectorAll('.action').forEach(b=>b.disabled=inMenu);
-        document.getElementById('go-btn').disabled=!inMenu;
+      const inMenu = GameState.is('menu');
+      document.querySelectorAll('.action').forEach(b=>b.disabled=inMenu);
+      document.getElementById('go-btn').disabled=!inMenu;
     }
 
     function updateEconomyUI(){
-        document.getElementById('coins').textContent = coins;
-        for (const k in inventory){
-            document.getElementById(`inv-${k}`).textContent = inventory[k];
-        }
+      document.getElementById('coins').textContent = coins;
+      for (const k in inventory){
+        document.getElementById(`inv-${k}`).textContent = inventory[k];
+      }
     }
 
     function updateUI(){
-        document.getElementById('user-val').textContent = USER.text();
-        document.getElementById('user-bar').style.width = USER.percent()+'%';
+      document.getElementById('user-val').textContent = USER.text();
+      document.getElementById('user-bar').style.width = USER.percent()+'%';
     }
 
 
@@ -436,7 +412,7 @@
 
     // +Stamina
     function onStaminaBoost() {
-      const { AMOUNT } = CONFIG.EFFECTS.STAMINA_POTION;
+      const { AMOUNT } = CONFIG.EFFECTS.ICE_CREAM;
       USER.add(AMOUNT);
       USER.cap();
       updateUI();
@@ -575,6 +551,7 @@
       updateEconomyUI();
       requestAnimationFrame(loop);
     });
+
   </script>
 </head>
 <body>
@@ -603,6 +580,7 @@
     </div>
     <div id="time-up" class="muted"></div>
   </div>
+  
   <div class="panel">
   Coins: <strong id="coins">0</strong>
   <div class="row">
