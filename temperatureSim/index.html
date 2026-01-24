@@ -1,101 +1,47 @@
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>2D Buoyant Convection (Stable Fluids + Boussinesq) with Draggable Probe</title>
+  <title>2D Buoyant Convection (Stable Fluids + Boussinesq) — FIXED UPWARD PLUME</title>
   <style>
-    :root{
-      --bg:#0b1020; --panel:#111a33; --text:#e8ecff; --muted:#a8b3dd;
-      --accent:#7aa2ff; --danger:#ff6b6b;
-    }
-    body{
-      margin:0; background:linear-gradient(180deg,#070a14,#0b1020);
-      color:var(--text); font:14px/1.35 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
-      display:flex; justify-content:center; padding:18px;
-    }
-    .wrap{
-      width:min(1150px, 100%);
-      display:grid;
-      grid-template-columns: 1fr 340px;
-      gap:14px;
-      align-items:start;
-    }
-    .stage,.panel{
-      background:rgba(255,255,255,0.03);
-      border:1px solid rgba(255,255,255,0.09);
-      border-radius:14px;
-      padding:14px;
-    }
-    .panel{ position:sticky; top:16px; }
-    canvas{
-      width:100%;
-      height:auto;
-      aspect-ratio: 1 / 1;
-      border-radius:12px;
-      display:block;
-      background:#050815;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.35) inset;
-      cursor: crosshair;
-    }
-    .title{ font-weight:800; letter-spacing:.2px; margin:0 0 8px; }
-    .muted{ color:var(--muted); }
-    .kpi{
-      border-radius:12px;
-      background:rgba(0,0,0,0.22);
-      padding:10px;
-      border:1px solid rgba(255,255,255,0.08);
-      margin:10px 0;
-    }
-    .kpi .big{ font-size:20px; font-weight:900; margin-top:2px; }
-    label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
-    input[type="range"]{ width:100%; }
-    input[type="number"]{
-      width:100%; padding:8px; border-radius:10px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:rgba(0,0,0,0.25); color:var(--text);
-    }
-    button{
-      padding:9px 10px; border-radius:10px;
-      border:1px solid rgba(255,255,255,0.12);
-      background:rgba(0,0,0,0.25); color:var(--text);
-      cursor:pointer; font-weight:700;
-    }
-    button:hover{ border-color: rgba(122,162,255,0.5); }
-    .btn-accent{ border-color: rgba(122,162,255,0.65); }
-    .btn-danger{ border-color: rgba(255,107,107,0.55); }
-    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-    .row > * { flex: 1; }
-    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-    hr{ border:0; border-top:1px solid rgba(255,255,255,0.1); margin:12px 0; }
-    .hint{
-      margin-top:10px; padding:10px;
-      border:1px dashed rgba(255,255,255,0.16); border-radius:12px; color:var(--muted);
-      background:rgba(255,255,255,0.02);
-      font-size:12px;
-    }
-    .pill{
-      display:inline-block; padding:2px 8px; border-radius:999px;
-      background:rgba(122,162,255,0.18); border:1px solid rgba(122,162,255,0.35);
-      color:#dbe6ff; font-size:12px;
-    }
+    :root{--bg:#0b1020;--panel:#111a33;--text:#e8ecff;--muted:#a8b3dd;--accent:#7aa2ff;--danger:#ff6b6b;}
+    body{margin:0;background:linear-gradient(180deg,#070a14,#0b1020);color:var(--text);font:14px/1.35 system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;display:flex;justify-content:center;padding:18px;}
+    .wrap{width:min(1150px,100%);display:grid;grid-template-columns:1fr 340px;gap:14px;align-items:start;}
+    .stage,.panel{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:14px;padding:14px;}
+    .panel{position:sticky;top:16px;}
+    canvas{width:100%;height:auto;aspect-ratio:1/1;border-radius:12px;display:block;background:#050815;box-shadow:0 10px 30px rgba(0,0,0,0.35) inset;cursor:crosshair;}
+    .title{font-weight:800;letter-spacing:.2px;margin:0 0 8px;}
+    .muted{color:var(--muted);}
+    .kpi{border-radius:12px;background:rgba(0,0,0,0.22);padding:10px;border:1px solid rgba(255,255,255,0.08);margin:10px 0;}
+    .kpi .big{font-size:20px;font-weight:900;margin-top:2px;}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:4px;}
+    input[type="range"]{width:100%;}
+    input[type="number"]{width:100%;padding:8px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.25);color:var(--text);}
+    button{padding:9px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:rgba(0,0,0,0.25);color:var(--text);cursor:pointer;font-weight:700;}
+    button:hover{border-color:rgba(122,162,255,0.5);}
+    .btn-accent{border-color:rgba(122,162,255,0.65);}
+    .btn-danger{border-color:rgba(255,107,107,0.55);}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+    .row > *{flex:1;}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    hr{border:0;border-top:1px solid rgba(255,255,255,0.1);margin:12px 0;}
+    .hint{margin-top:10px;padding:10px;border:1px dashed rgba(255,255,255,0.16);border-radius:12px;color:var(--muted);background:rgba(255,255,255,0.02);font-size:12px;}
+    .pill{display:inline-block;padding:2px 8px;border-radius:999px;background:rgba(122,162,255,0.18);border:1px solid rgba(122,162,255,0.35);color:#dbe6ff;font-size:12px;}
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="stage">
-      <h2 class="title">2D Buoyant Convection (Stable Fluids + Boussinesq) — 50×50</h2>
+      <h2 class="title">2D Buoyant Convection (Stable Fluids + Boussinesq) — 50×50 (Fixed)</h2>
       <p class="muted" style="margin-top:0">
         Drag the <span class="pill">probe square</span>. Monitor reports <b>max temperature</b> inside it.
-        Free-slip walls. Incompressible flow (pressure projection).
+        <b>Fix applied:</b> buoyancy now accelerates upward (negative y in canvas coordinates).
       </p>
       <canvas id="cv" width="720" height="720"></canvas>
       <div class="hint">
-        This uses a classic “Stable Fluids” style solver (semi‑Lagrangian advection + pressure projection),
-        and buoyancy via the Boussinesq approximation (hotter → upward force). [1](https://www.dgp.toronto.edu/public_user/stam/reality/Research/pdf/ns.pdf)[2](https://graphics.cs.cmu.edu/nsp/course/15-464/Spring11/papers/StamFluidforGames.pdf)[3](https://en.wikipedia.org/wiki/Boussinesq_approximation_%28buoyancy%29)
-        <br><br>
-        Tip: If motion looks too “diffuse”, raise <b>buoyancy</b> slightly and lower <b>thermal diffusion</b>.
+        Why the earlier version “dropped”: in canvas/grid coordinates, <b>+y points downward</b>, so adding positive buoyancy to v caused downward acceleration.
+        This version uses <code>v += -buoy*(T - Tamb)</code> so hot fluid rises.
       </div>
     </div>
 
@@ -124,19 +70,19 @@
       <h3 class="title" style="margin-bottom:8px;">Physics Controls</h3>
 
       <div style="margin-bottom:10px;">
-        <label>Thermal diffusion κ (dimensionless slider)</label>
+        <label>Thermal diffusion κ</label>
         <input id="kappa" type="range" min="0" max="0.005" step="0.0001" value="0.0012">
         <div class="muted" style="font-size:12px;"><span id="kappaVal">0.0012</span></div>
       </div>
 
       <div style="margin-bottom:10px;">
-        <label>Viscosity ν (dimensionless slider)</label>
+        <label>Viscosity ν</label>
         <input id="nu" type="range" min="0" max="0.01" step="0.0001" value="0.0010">
         <div class="muted" style="font-size:12px;"><span id="nuVal">0.0010</span></div>
       </div>
 
       <div style="margin-bottom:10px;">
-        <label>Buoyancy strength (m/s² per K, scaled)</label>
+        <label>Buoyancy strength (scaled)</label>
         <input id="buoy" type="range" min="0" max="8" step="0.01" value="2.4">
         <div class="muted" style="font-size:12px;"><span id="buoyVal">2.40</span></div>
       </div>
@@ -182,23 +128,19 @@
 
       <div style="margin-bottom:10px;">
         <label>Show velocity vectors</label>
-        <input id="showVel" type="checkbox" />
-        <span class="muted" style="font-size:12px;">(optional overlay)</span>
+        <input id="showVel" type="checkbox" /> <span class="muted" style="font-size:12px;">(overlay)</span>
       </div>
 
       <div class="hint">
         <b>Walls:</b> free-slip (normal velocity = 0, tangential gradient = 0).<br>
-        <b>Source:</b> 3×3 in center, adds energy P·dt distributed via heat capacity per cell.<br>
-        <b>Units:</b> temperature stored in Kelvin; UI shows °C and K.
+        <b>Thermal BC:</b> insulated (zero normal gradient).<br>
+        <b>Source:</b> 3×3 in center, adds energy P·dt via heat capacity per cell.
       </div>
     </div>
   </div>
 
 <script>
 (() => {
-  // -----------------------------
-  // Canvas / UI
-  // -----------------------------
   const canvas = document.getElementById('cv');
   const ctx = canvas.getContext('2d', { alpha:false });
 
@@ -228,72 +170,47 @@
   const selSizeVal = document.getElementById('selSizeVal');
   const selSizeVal2= document.getElementById('selSizeVal2');
 
-  // -----------------------------
-  // Grid (Stam style with boundary padding)
-  // N is interior resolution; arrays are (N+2)*(N+2)
-  // -----------------------------
   const N = 50;
   const SIZE = (N+2)*(N+2);
-
   const IX = (i,j) => i + (N+2)*j;
+  const clamp = (x,a,b) => Math.max(a, Math.min(b,x));
 
-  // Velocity fields (u,v) and previous (u0,v0)
   let u  = new Float32Array(SIZE);
   let v  = new Float32Array(SIZE);
   let u0 = new Float32Array(SIZE);
   let v0 = new Float32Array(SIZE);
 
-  // Temperature scalar field and previous
-  let T  = new Float32Array(SIZE); // Kelvin
+  let T  = new Float32Array(SIZE);
   let T0 = new Float32Array(SIZE);
 
-  // Pressure and divergence for projection
   let p   = new Float32Array(SIZE);
   let div = new Float32Array(SIZE);
 
-  // -----------------------------
-  // Physical scaling for heat source (Watts -> dT)
-  // -----------------------------
-  let L = parseFloat(sizeLEl.value); // m
+  let L = parseFloat(sizeLEl.value);
   let rho = parseFloat(rhoEl.value);
   let cp  = parseFloat(cpEl.value);
   let thickness = parseFloat(thicknessEl.value);
 
   function cellArea() { return (L/N)*(L/N); }
-  function Ccell() { return rho * cp * thickness * cellArea(); } // J/K per cell
+  function Ccell() { return rho * cp * thickness * cellArea(); }
 
-  // -----------------------------
-  // Probe square (in interior cell coords 1..N)
-  // -----------------------------
   let selSize = parseInt(selSizeEl.value, 10);
-  let selX = Math.floor(N/2 - selSize/2) + 1; // +1 because boundary padding
+  let selX = Math.floor(N/2 - selSize/2) + 1;
   let selY = Math.floor(N/2 - selSize/2) + 1;
 
-  // Heat source 3x3 at center
   const sourceSize = 3;
 
-  // Simulation timing
   let running = true;
   let simTime = 0;
 
-  const fixedDt = 0.02;       // seconds (stable for this size)
+  const fixedDt = 0.02;
   const maxSubSteps = 8;
   let lastTS = performance.now();
 
-  // -----------------------------
-  // Utility
-  // -----------------------------
-  const clamp = (x,a,b) => Math.max(a, Math.min(b,x));
-
-  // Stable Fluids style add_source
   function add_source(x, s, dt) {
     for (let i=0;i<SIZE;i++) x[i] += dt*s[i];
   }
 
-  // Free-slip boundary conditions:
-  // - normal component at wall = 0
-  // - tangential derivative = 0 (copy from adjacent interior)
-  // Scalars: copy (zero normal gradient) => insulated.
   function set_bnd_scalar(x) {
     for (let i=1;i<=N;i++) {
       x[IX(0, i)]   = x[IX(1, i)];
@@ -308,16 +225,8 @@
   }
 
   function set_bnd_u(uu) {
-    // Left/right walls: normal is u => u = 0
-    // Top/bottom: tangential => du/dn = 0 => copy
-    for (let j=1;j<=N;j++) {
-      uu[IX(0, j)]   = 0;
-      uu[IX(N+1, j)] = 0;
-    }
-    for (let i=1;i<=N;i++) {
-      uu[IX(i, 0)]   = uu[IX(i, 1)];
-      uu[IX(i, N+1)] = uu[IX(i, N)];
-    }
+    for (let j=1;j<=N;j++) { uu[IX(0, j)] = 0; uu[IX(N+1, j)] = 0; }
+    for (let i=1;i<=N;i++) { uu[IX(i, 0)] = uu[IX(i, 1)]; uu[IX(i, N+1)] = uu[IX(i, N)]; }
     uu[IX(0,0)]       = 0.5*(uu[IX(1,0)]     + uu[IX(0,1)]);
     uu[IX(0,N+1)]     = 0.5*(uu[IX(1,N+1)]   + uu[IX(0,N)]);
     uu[IX(N+1,0)]     = 0.5*(uu[IX(N,0)]     + uu[IX(N+1,1)]);
@@ -325,29 +234,19 @@
   }
 
   function set_bnd_v(vv) {
-    // Bottom/top walls: normal is v => v = 0
-    // Left/right: tangential => dv/dn = 0 => copy
-    for (let i=1;i<=N;i++) {
-      vv[IX(i, 0)]   = 0;
-      vv[IX(i, N+1)] = 0;
-    }
-    for (let j=1;j<=N;j++) {
-      vv[IX(0, j)]   = vv[IX(1, j)];
-      vv[IX(N+1, j)] = vv[IX(N, j)];
-    }
+    for (let i=1;i<=N;i++) { vv[IX(i, 0)] = 0; vv[IX(i, N+1)] = 0; }
+    for (let j=1;j<=N;j++) { vv[IX(0, j)] = vv[IX(1, j)]; vv[IX(N+1, j)] = vv[IX(N, j)]; }
     vv[IX(0,0)]       = 0.5*(vv[IX(1,0)]     + vv[IX(0,1)]);
     vv[IX(0,N+1)]     = 0.5*(vv[IX(1,N+1)]   + vv[IX(0,N)]);
     vv[IX(N+1,0)]     = 0.5*(vv[IX(N,0)]     + vv[IX(N+1,1)]);
     vv[IX(N+1,N+1)]   = 0.5*(vv[IX(N,N+1)]   + vv[IX(N+1,N)]);
   }
 
-  // Linear solver (Gauss-Seidel relaxation)
   function lin_solve(x, x0, a, c, bndSetter) {
-    // 20 iterations is typical for small grids; can raise for more accuracy.
     for (let k=0;k<20;k++) {
       for (let j=1;j<=N;j++) {
         for (let i=1;i<=N;i++) {
-          x[IX(i,j)] = (x0[IX(i,j)] + a*( x[IX(i-1,j)] + x[IX(i+1,j)] + x[IX(i,j-1)] + x[IX(i,j+1)] )) / c;
+          x[IX(i,j)] = (x0[IX(i,j)] + a*(x[IX(i-1,j)] + x[IX(i+1,j)] + x[IX(i,j-1)] + x[IX(i,j+1)])) / c;
         }
       }
       bndSetter(x);
@@ -359,25 +258,18 @@
     lin_solve(x, x0, a, 1 + 4*a, bndSetter);
   }
 
-  // Semi-Lagrangian advection
   function advect(d, d0, uu, vv, dt, bndSetter) {
-    const dt0 = dt * N; // grid spacing normalized (h=1/N)
+    const dt0 = dt * N;
     for (let j=1;j<=N;j++) {
       for (let i=1;i<=N;i++) {
         let x = i - dt0 * uu[IX(i,j)];
         let y = j - dt0 * vv[IX(i,j)];
-
         x = clamp(x, 0.5, N + 0.5);
         y = clamp(y, 0.5, N + 0.5);
-
-        const i0 = Math.floor(x);
-        const i1 = i0 + 1;
-        const j0 = Math.floor(y);
-        const j1 = j0 + 1;
-
+        const i0 = Math.floor(x), i1 = i0 + 1;
+        const j0 = Math.floor(y), j1 = j0 + 1;
         const s1 = x - i0, s0 = 1 - s1;
         const t1 = y - j0, t0 = 1 - t1;
-
         d[IX(i,j)] =
           s0*(t0*d0[IX(i0,j0)] + t1*d0[IX(i0,j1)]) +
           s1*(t0*d0[IX(i1,j0)] + t1*d0[IX(i1,j1)]);
@@ -386,7 +278,6 @@
     bndSetter(d);
   }
 
-  // Projection: make velocity divergence-free by solving Poisson for pressure
   function project(uu, vv, p, div) {
     for (let j=1;j<=N;j++) {
       for (let i=1;i<=N;i++) {
@@ -396,9 +287,7 @@
     }
     set_bnd_scalar(div);
     set_bnd_scalar(p);
-
     lin_solve(p, div, 1, 4, set_bnd_scalar);
-
     for (let j=1;j<=N;j++) {
       for (let i=1;i<=N;i++) {
         uu[IX(i,j)] -= 0.5 * N * (p[IX(i+1,j)] - p[IX(i-1,j)]);
@@ -409,12 +298,10 @@
     set_bnd_v(vv);
   }
 
-  // Velocity step: add forces, diffuse, advect, project
   function vel_step(uu, vv, uu0, vv0, visc, dt) {
     add_source(uu, uu0, dt);
     add_source(vv, vv0, dt);
 
-    // swap uu0 <-> uu
     [uu0, uu] = [uu, uu0];
     diffuse(uu, uu0, visc, dt, set_bnd_u);
 
@@ -431,12 +318,9 @@
 
     project(uu, vv, p, div);
 
-    // Restore references (because swaps were local)
-    // (We return the updated arrays by writing into original references outside)
     return { uu, vv, uu0, vv0 };
   }
 
-  // Scalar (temperature) step: add sources, diffuse, advect
   function scalar_step(x, x0, uu, vv, diff, dt, bndSetter) {
     add_source(x, x0, dt);
     [x0, x] = [x, x0];
@@ -446,90 +330,65 @@
     return { x, x0 };
   }
 
-  // -----------------------------
-  // Heat source in Watts -> temperature source term (K/s) stored in T0
-  // (T0 acts as "source" array each step; we'll zero it after applying)
-  // -----------------------------
   function addHeatSourceToT0(dt) {
     const P = Math.max(0, parseFloat(powerWEl.value) || 0);
     if (P === 0) return;
-
     const C = Ccell();
     const cx = Math.floor(N/2) + 1;
     const cy = Math.floor(N/2) + 1;
     const half = Math.floor(sourceSize/2);
     const cells = sourceSize * sourceSize;
-
-    // Energy per source cell per step: dE = P*dt / cells
-    // Temperature increment: dT = dE / C
     const dT = (P * dt) / (cells * C);
-
     for (let j=cy-half; j<=cy+half; j++) {
       for (let i=cx-half; i<=cx+half; i++) {
         if (i>=1 && i<=N && j>=1 && j<=N) {
-          T0[IX(i,j)] += dT / dt; // store as K/s so add_source(x, x0, dt) adds dT
+          T0[IX(i,j)] += dT / dt; // K/s
         }
       }
     }
   }
 
-  // -----------------------------
-  // Buoyancy force: v0 gets + buoy*(T - Tamb)
-  // Using Boussinesq idea: density variations only matter in gravity term,
-  // so hotter-than-ambient adds upward acceleration. [3](https://en.wikipedia.org/wiki/Boussinesq_approximation_%28buoyancy%29)
-  // -----------------------------
   function addBuoyancyToV0() {
     const buoy = parseFloat(buoyEl.value) || 0;
     const Tamb = (parseFloat(ambientCEl.value) + 273.15);
-
-    // Clear v0 and u0 forces each step (we'll re-add buoyancy)
     u0.fill(0);
     v0.fill(0);
-
     if (buoy <= 0) return;
 
+    // IMPORTANT SIGN:
+    // Grid/canvas y increases downward. For hot air to rise, vertical velocity should be negative.
+    // So we ADD a NEGATIVE acceleration when (T > Tamb).
     for (let j=1;j<=N;j++) {
       for (let i=1;i<=N;i++) {
         const t = T[IX(i,j)];
-        const f = buoy * (t - Tamb); // upward accel term
-        v0[IX(i,j)] += f;
+        const f_up = -buoy * (t - Tamb);
+        v0[IX(i,j)] += f_up;
       }
     }
   }
 
-  // -----------------------------
-  // Initialization / Reset
-  // -----------------------------
   function recalcCapacity() {
     L = parseFloat(sizeLEl.value);
     rho = parseFloat(rhoEl.value);
-    cp  = parseFloat(cpEl.value);
+    cp = parseFloat(cpEl.value);
     thickness = parseFloat(thicknessEl.value);
   }
 
   function resetAll() {
     recalcCapacity();
     const Tamb = (parseFloat(ambientCEl.value) + 273.15);
-
     u.fill(0); v.fill(0); u0.fill(0); v0.fill(0);
     T.fill(Tamb); T0.fill(0);
     p.fill(0); div.fill(0);
-
     simTime = 0;
-
-    // Reset probe centered
     selSize = parseInt(selSizeEl.value, 10);
     selX = Math.floor(N/2 - selSize/2) + 1;
     selY = Math.floor(N/2 - selSize/2) + 1;
   }
 
-  // -----------------------------
-  // Color mapping
-  // -----------------------------
   function tempToColor(t, tMin, tMax) {
     const x = (t - tMin) / Math.max(1e-6, (tMax - tMin));
     const u = clamp(x, 0, 1);
-
     const stops = [
       {p:0.00, c:[ 20,  30,  70]},
       {p:0.25, c:[ 20, 140, 220]},
@@ -537,11 +396,8 @@
       {p:0.75, c:[230, 200,  60]},
       {p:1.00, c:[240,  70,  60]}
     ];
-
     let a = stops[0], b = stops[stops.length-1];
-    for (let i=0;i<stops.length-1;i++){
-      if (u >= stops[i].p && u <= stops[i+1].p){ a=stops[i]; b=stops[i+1]; break; }
-    }
+    for (let i=0;i<stops.length-1;i++) if (u >= stops[i].p && u <= stops[i+1].p){ a=stops[i]; b=stops[i+1]; break; }
     const w = (u - a.p) / Math.max(1e-6, (b.p - a.p));
     const r = Math.round(a.c[0] + (b.c[0]-a.c[0])*w);
     const g = Math.round(a.c[1] + (b.c[1]-a.c[1])*w);
@@ -549,43 +405,34 @@
     return `rgb(${r},${g},${bl})`;
   }
 
-  // -----------------------------
-  // Render
-  // -----------------------------
   function render() {
-    // min/max (interior)
     let tMin = Infinity, tMax = -Infinity;
-    for (let j=1;j<=N;j++) {
-      for (let i=1;i<=N;i++) {
-        const t = T[IX(i,j)];
-        if (t < tMin) tMin = t;
-        if (t > tMax) tMax = t;
-      }
+    for (let j=1;j<=N;j++) for (let i=1;i<=N;i++) {
+      const t = T[IX(i,j)];
+      if (t < tMin) tMin = t;
+      if (t > tMax) tMax = t;
     }
 
     const W = canvas.width, H = canvas.height;
     const cw = W / N, ch = H / N;
 
-    // Field
-    for (let j=1;j<=N;j++) {
-      for (let i=1;i<=N;i++) {
-        ctx.fillStyle = tempToColor(T[IX(i,j)], tMin, tMax);
-        ctx.fillRect((i-1)*cw, (j-1)*ch, cw+0.5, ch+0.5);
-      }
+    for (let j=1;j<=N;j++) for (let i=1;i<=N;i++) {
+      ctx.fillStyle = tempToColor(T[IX(i,j)], tMin, tMax);
+      ctx.fillRect((i-1)*cw, (j-1)*ch, cw+0.5, ch+0.5);
     }
 
-    // Heat source outline
+    // heat source outline
     const cx = Math.floor(N/2) + 1;
     const cy = Math.floor(N/2) + 1;
-    const half = Math.floor(sourceSize/2);
+    const half = 1;
     ctx.save();
     ctx.strokeStyle = "rgba(255,255,255,0.75)";
     ctx.lineWidth = 2;
     ctx.setLineDash([6,4]);
-    ctx.strokeRect((cx-half-1)*cw, (cy-half-1)*ch, sourceSize*cw, sourceSize*ch);
+    ctx.strokeRect((cx-half-1)*cw, (cy-half-1)*ch, 3*cw, 3*ch);
     ctx.restore();
 
-    // Probe square
+    // probe
     ctx.save();
     ctx.strokeStyle = "rgba(10,10,10,0.55)";
     ctx.lineWidth = 6;
@@ -595,81 +442,57 @@
     ctx.strokeRect((selX-1)*cw, (selY-1)*ch, selSize*cw, selSize*ch);
     ctx.restore();
 
-    // Optional velocity vectors
     if (showVelEl.checked) {
       ctx.save();
       ctx.globalAlpha = 0.55;
       ctx.strokeStyle = "rgba(255,255,255,0.85)";
       ctx.lineWidth = 1;
-
-      const step = 4; // draw every 4 cells
-      const scale = 0.8; // vector scale in cell units
-      for (let j=1;j<=N;j+=step) {
-        for (let i=1;i<=N;i+=step) {
-          const vx = u[IX(i,j)];
-          const vy = v[IX(i,j)];
-          const x0 = (i-0.5)*cw;
-          const y0 = (j-0.5)*ch;
-          ctx.beginPath();
-          ctx.moveTo(x0,y0);
-          ctx.lineTo(x0 + vx*scale*cw, y0 + vy*scale*ch);
-          ctx.stroke();
-        }
+      const step = 4;
+      const scale = 0.8;
+      for (let j=1;j<=N;j+=step) for (let i=1;i<=N;i+=step) {
+        const vx = u[IX(i,j)], vy = v[IX(i,j)];
+        const x0 = (i-0.5)*cw, y0 = (j-0.5)*ch;
+        ctx.beginPath();
+        ctx.moveTo(x0, y0);
+        ctx.lineTo(x0 + vx*scale*cw, y0 + vy*scale*ch);
+        ctx.stroke();
       }
       ctx.restore();
     }
 
-    // Monitor: max temp in probe
     let maxT = -Infinity;
-    for (let j=selY; j<selY+selSize; j++) {
-      for (let i=selX; i<selX+selSize; i++) {
-        maxT = Math.max(maxT, T[IX(i,j)]);
-      }
+    for (let j=selY; j<selY+selSize; j++) for (let i=selX; i<selX+selSize; i++) {
+      maxT = Math.max(maxT, T[IX(i,j)]);
     }
     const maxC = maxT - 273.15;
     kpiMax.textContent = `${maxC.toFixed(2)} °C`;
     kpiMaxK.textContent = `${maxT.toFixed(2)} K`;
-
-    // Info
     kpiTime.textContent = `${simTime.toFixed(2)} s`;
     kpiInfo.textContent = `dt=${fixedDt.toFixed(3)}s • range ${(tMin-273.15).toFixed(1)}..${(tMax-273.15).toFixed(1)} °C`;
   }
 
-  // -----------------------------
-  // Step
-  // -----------------------------
   function step(dt) {
     recalcCapacity();
 
-    // 1) Clear scalar sources and add heat source as K/s into T0
     T0.fill(0);
     addHeatSourceToT0(dt);
 
-    // 2) Add buoyancy as force into v0 (m/s^2) based on (T - Tamb)
     addBuoyancyToV0();
 
-    // 3) Velocity step
     const visc = parseFloat(nuEl.value) || 0;
     const vel = vel_step(u, v, u0, v0, visc, dt);
-    // restore references
     u = vel.uu; v = vel.vv; u0 = vel.uu0; v0 = vel.vv0;
 
-    // 4) Temperature step: diffuse + advect by the updated velocity
     const diff = parseFloat(kappaEl.value) || 0;
     const sc = scalar_step(T, T0, u, v, diff, dt, set_bnd_scalar);
     T = sc.x; T0 = sc.x0;
 
-    // Prevent unphysical negatives (shouldn't happen, but safe guard)
     for (let i=0;i<SIZE;i++) if (T[i] < 0) T[i] = 0;
   }
 
-  // -----------------------------
-  // Loop
-  // -----------------------------
   function loop(ts) {
     const elapsed = (ts - lastTS) / 1000;
     lastTS = ts;
-
     if (running) {
       let remaining = Math.min(elapsed, fixedDt * maxSubSteps);
       while (remaining > 1e-9) {
@@ -679,14 +502,11 @@
         remaining -= dt;
       }
     }
-
     render();
     requestAnimationFrame(loop);
   }
 
-  // -----------------------------
-  // Probe dragging
-  // -----------------------------
+  // probe dragging
   let dragging = false;
   let dragOffX = 0, dragOffY = 0;
 
@@ -694,9 +514,9 @@
     const rect = canvas.getBoundingClientRect();
     const px = (evt.clientX - rect.left) * (canvas.width / rect.width);
     const py = (evt.clientY - rect.top)  * (canvas.height / rect.height);
-    const x = Math.floor(px / (canvas.width / N)) + 1; // interior coords
+    const x = Math.floor(px / (canvas.width / N)) + 1;
     const y = Math.floor(py / (canvas.height / N)) + 1;
-    return { x: clamp(x,1,N), y: clamp(y,1,N) };
+    return { x: clamp(x, 1, N), y: clamp(y, 1, N) };
   }
 
   function clampProbe() {
@@ -728,20 +548,15 @@
   window.addEventListener('mouseup', () => dragging = false);
   canvas.addEventListener('mouseleave', () => dragging = false);
 
-  // -----------------------------
-  // UI events
-  // -----------------------------
   function syncUI() {
     kappaVal.textContent = parseFloat(kappaEl.value).toFixed(4);
-    nuVal.textContent    = parseFloat(nuEl.value).toFixed(4);
-    buoyVal.textContent  = parseFloat(buoyEl.value).toFixed(2);
+    nuVal.textContent = parseFloat(nuEl.value).toFixed(4);
+    buoyVal.textContent = parseFloat(buoyEl.value).toFixed(2);
     clampProbe();
   }
 
   [kappaEl, nuEl, buoyEl, selSizeEl].forEach(el => el.addEventListener('input', syncUI));
-  [ambientCEl, powerWEl, rhoEl, cpEl, thicknessEl, sizeLEl].forEach(el => el.addEventListener('change', () => {
-    recalcCapacity();
-  }));
+  [ambientCEl, powerWEl, rhoEl, cpEl, thicknessEl, sizeLEl].forEach(el => el.addEventListener('change', () => { recalcCapacity(); }));
 
   btnToggle.addEventListener('click', () => {
     running = !running;
@@ -750,9 +565,6 @@
 
   btnReset.addEventListener('click', () => resetAll());
 
-  // -----------------------------
-  // Init
-  // -----------------------------
   syncUI();
   resetAll();
   requestAnimationFrame(loop);
