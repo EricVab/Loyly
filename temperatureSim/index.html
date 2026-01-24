@@ -1,0 +1,593 @@
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>2D Thermal Field: Diffusion + Upward Convection + Heat Source</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#111a33; --text:#e8ecff; --muted:#a8b3dd;
+      --accent:#7aa2ff; --danger:#ff6b6b; --good:#43d9ad;
+    }
+    body{
+      margin:0; background:linear-gradient(180deg,#070a14,#0b1020);
+      color:var(--text); font:14px/1.35 system-ui, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      display:flex; justify-content:center; padding:18px;
+    }
+    .wrap{
+      width:min(1100px, 100%);
+      display:grid;
+      grid-template-columns: 1fr 320px;
+      gap:14px;
+      align-items:start;
+    }
+    .stage{
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:14px;
+      padding:14px;
+    }
+    .panel{
+      background:rgba(255,255,255,0.03);
+      border:1px solid rgba(255,255,255,0.09);
+      border-radius:14px;
+      padding:14px;
+      position:sticky; top:16px;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex: 1; }
+    canvas{
+      width:100%;
+      height:auto;
+      aspect-ratio: 1 / 1;
+      border-radius:12px;
+      display:block;
+      background:#050815;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35) inset;
+      cursor: crosshair;
+    }
+    .title{ font-weight:700; letter-spacing:.2px; margin:0 0 8px; }
+    .muted{ color:var(--muted); }
+    .kpi{
+      border-radius:12px;
+      background:rgba(0,0,0,0.22);
+      padding:10px;
+      border:1px solid rgba(255,255,255,0.08);
+      margin:10px 0;
+    }
+    .kpi .big{
+      font-size:20px; font-weight:800; margin-top:2px;
+    }
+    .grid2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+    label{ display:block; font-size:12px; color:var(--muted); margin-bottom:4px; }
+    input[type="range"]{ width:100%; }
+    input[type="number"]{
+      width:100%; padding:8px; border-radius:10px; border:1px solid rgba(255,255,255,0.12);
+      background:rgba(0,0,0,0.25); color:var(--text);
+    }
+    button{
+      padding:9px 10px; border-radius:10px; border:1px solid rgba(255,255,255,0.12);
+      background:rgba(0,0,0,0.25); color:var(--text);
+      cursor:pointer; font-weight:600;
+    }
+    button:hover{ border-color: rgba(122,162,255,0.5); }
+    .btn-accent{ border-color: rgba(122,162,255,0.65); color:#eaf0ff; }
+    .btn-danger{ border-color: rgba(255,107,107,0.55); }
+    .hint{
+      margin-top:10px; padding:10px;
+      border:1px dashed rgba(255,255,255,0.16); border-radius:12px; color:var(--muted);
+      background:rgba(255,255,255,0.02);
+    }
+    .small{ font-size:12px; }
+    .pill{
+      display:inline-block; padding:2px 8px; border-radius:999px;
+      background:rgba(122,162,255,0.18); border:1px solid rgba(122,162,255,0.35);
+      color:#dbe6ff; font-size:12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stage">
+      <h2 class="title">Thermal Field (50×50): Diffusion + Upward-Biased Convection + 3×3 Heat Source</h2>
+      <p class="muted" style="margin-top:0">
+        Drag the <span class="pill">measurement square</span> inside the domain. The monitor reports <b>max temperature</b> inside it.
+      </p>
+      <canvas id="cv" width="700" height="700"></canvas>
+      <div class="hint">
+        <b>Notes:</b> This uses an energy-based conservative transport for convection (moves heat upward more than sideways),
+        plus a Laplacian-like diffusion term. Boundaries are insulated (no-flux).
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3 class="title" style="margin-bottom:6px;">Monitor</h3>
+
+      <div class="kpi">
+        <div class="muted">Max temperature in measurement square</div>
+        <div class="big" id="kpiMax">—</div>
+        <div class="small muted" id="kpiMaxK">—</div>
+      </div>
+
+      <div class="kpi">
+        <div class="muted">Simulation time</div>
+        <div class="big" id="kpiTime">0.00 s</div>
+        <div class="small muted" id="kpiDt">dt: —</div>
+      </div>
+
+      <div class="row" style="margin-bottom:10px;">
+        <button id="btnToggle" class="btn-accent">Pause</button>
+        <button id="btnReset" class="btn-danger">Reset</button>
+      </div>
+
+      <hr style="border:0;border-top:1px solid rgba(255,255,255,0.1); margin:12px 0;">
+
+      <h3 class="title" style="margin-bottom:8px;">Controls</h3>
+
+      <div style="margin-bottom:10px;">
+        <label>Diffusion rate α (1/s)</label>
+        <input id="diffRate" type="range" min="0" max="3" step="0.01" value="0.60">
+        <div class="small muted"><span id="diffRateVal">0.60</span></div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label>Upward convection rate β (1/s)</label>
+        <input id="convRate" type="range" min="0" max="4" step="0.01" value="1.30">
+        <div class="small muted"><span id="convRateVal">1.30</span></div>
+      </div>
+
+      <div class="grid2" style="margin-bottom:10px;">
+        <div>
+          <label>Heat source power (W)</label>
+          <input id="powerW" type="number" value="150" step="10" min="0">
+        </div>
+        <div>
+          <label>Ambient temp (°C)</label>
+          <input id="ambientC" type="number" value="20" step="1">
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-bottom:10px;">
+        <div>
+          <label>ρ density (kg/m³)</label>
+          <input id="rho" type="number" value="1.2" step="0.1" min="0.1">
+        </div>
+        <div>
+          <label>cₚ (J/kg·K)</label>
+          <input id="cp" type="number" value="1005" step="10" min="100">
+        </div>
+      </div>
+
+      <div class="grid2" style="margin-bottom:10px;">
+        <div>
+          <label>Thickness (m)</label>
+          <input id="thickness" type="number" value="0.10" step="0.01" min="0.001">
+        </div>
+        <div>
+          <label>Domain size L (m)</label>
+          <input id="sizeL" type="number" value="1.0" step="0.1" min="0.1">
+        </div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label>Measurement square size (cells)</label>
+        <input id="selSize" type="range" min="2" max="25" step="1" value="10">
+        <div class="small muted"><span id="selSizeVal">10</span>×<span id="selSizeVal2">10</span> cells</div>
+      </div>
+
+      <div style="margin-bottom:10px;">
+        <label>Render scaling (auto range)</label>
+        <div class="small muted">
+          Colors autoscale to the current min/max field each frame.
+          (Easy to change to fixed scale if you want.)
+        </div>
+      </div>
+
+      <div class="hint small">
+        <b>Physics mapping:</b> Temperatures are stored per cell (K). Internally we evolve <b>energy</b> E= T·C<sub>cell</sub>.
+        Heat source adds energy in watts: ΔE=PΔt distributed over 3×3 cells.
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ---------- Canvas / Grid Setup ----------
+  const canvas = document.getElementById('cv');
+  const ctx = canvas.getContext('2d', { alpha: false });
+
+  const N = 50;                 // grid resolution: 50x50
+  let L = 1.0;                  // domain size in meters (editable)
+  let cellArea = (L / N) * (L / N);
+
+  // Temperature field in Kelvin (for display we convert to °C).
+  let T = new Float32Array(N*N);
+  // Energy field (J) corresponding to T * C_cell.
+  let E = new Float32Array(N*N);
+  // Scratch buffers for updates
+  let E2 = new Float32Array(N*N);
+  let T2 = new Float32Array(N*N);
+
+  // ---------- UI Elements ----------
+  const diffRateEl = document.getElementById('diffRate');
+  const convRateEl = document.getElementById('convRate');
+  const powerWEl = document.getElementById('powerW');
+  const ambientCEl = document.getElementById('ambientC');
+  const rhoEl = document.getElementById('rho');
+  const cpEl = document.getElementById('cp');
+  const thicknessEl = document.getElementById('thickness');
+  const sizeLEl = document.getElementById('sizeL');
+  const selSizeEl = document.getElementById('selSize');
+
+  const diffRateVal = document.getElementById('diffRateVal');
+  const convRateVal = document.getElementById('convRateVal');
+  const selSizeVal = document.getElementById('selSizeVal');
+  const selSizeVal2 = document.getElementById('selSizeVal2');
+
+  const kpiMax = document.getElementById('kpiMax');
+  const kpiMaxK = document.getElementById('kpiMaxK');
+  const kpiTime = document.getElementById('kpiTime');
+  const kpiDt = document.getElementById('kpiDt');
+
+  const btnToggle = document.getElementById('btnToggle');
+  const btnReset  = document.getElementById('btnReset');
+
+  // ---------- Parameters ----------
+  let diffusionRate = parseFloat(diffRateEl.value); // 1/s
+  let convectionRate = parseFloat(convRateEl.value);// 1/s
+  let powerW = parseFloat(powerWEl.value);          // W
+  let ambientK = (parseFloat(ambientCEl.value) + 273.15); // K
+
+  let rho = parseFloat(rhoEl.value);         // kg/m^3
+  let cp  = parseFloat(cpEl.value);          // J/kg/K
+  let thickness = parseFloat(thicknessEl.value); // m
+  let Ccell = rho * cp * thickness * cellArea; // J/K per cell (uniform)
+
+  // Measurement selection square: in cell coordinates
+  let selSize = parseInt(selSizeEl.value, 10);
+  let selX = Math.floor(N/2 - selSize/2);
+  let selY = Math.floor(N/2 - selSize/2);
+
+  // Heat source: 3x3 centered at grid center
+  const sourceSize = 3;
+
+  // Simulation timing
+  let running = true;
+  let simTime = 0;          // seconds
+  const fixedDt = 0.02;     // seconds per physics step (stable default)
+  const maxSubSteps = 10;   // cap in case tab lags
+  let lastTS = performance.now();
+
+  // ---------- Helpers ----------
+  const idx = (x,y) => y*N + x;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  function recalcCapacityAndArea() {
+    L = parseFloat(sizeLEl.value);
+    cellArea = (L / N) * (L / N);
+    rho = parseFloat(rhoEl.value);
+    cp  = parseFloat(cpEl.value);
+    thickness = parseFloat(thicknessEl.value);
+    Ccell = rho * cp * thickness * cellArea;
+
+    // Re-sync energy field to keep temperatures identical after capacity change:
+    // E = T * Ccell
+    for (let i=0;i<N*N;i++) E[i] = T[i] * Ccell;
+  }
+
+  function resetField() {
+    ambientK = (parseFloat(ambientCEl.value) + 273.15);
+    for (let i=0;i<N*N;i++) {
+      T[i] = ambientK;
+      E[i] = ambientK * Ccell;
+    }
+    simTime = 0;
+  }
+
+  // Convert temperature to a color (blue->cyan->green->yellow->red)
+  // We autoscale with current min/max for visualization.
+  function tempToColor(t, tMin, tMax) {
+    const x = (t - tMin) / Math.max(1e-6, (tMax - tMin));
+    const u = clamp(x, 0, 1);
+
+    // Simple 5-stop gradient
+    const stops = [
+      {p:0.00, c:[ 20,  30,  70]}, // deep blue
+      {p:0.25, c:[ 20, 140, 220]}, // cyan-blue
+      {p:0.50, c:[ 40, 200, 120]}, // green
+      {p:0.75, c:[230, 200,  60]}, // yellow
+      {p:1.00, c:[240,  70,  60]}  // red
+    ];
+
+    let a = stops[0], b = stops[stops.length-1];
+    for (let i=0;i<stops.length-1;i++){
+      if (u >= stops[i].p && u <= stops[i+1].p){ a=stops[i]; b=stops[i+1]; break; }
+    }
+    const w = (u - a.p) / Math.max(1e-6, (b.p - a.p));
+    const r = Math.round(a.c[0] + (b.c[0]-a.c[0])*w);
+    const g = Math.round(a.c[1] + (b.c[1]-a.c[1])*w);
+    const bl= Math.round(a.c[2] + (b.c[2]-a.c[2])*w);
+    return `rgb(${r},${g},${bl})`;
+  }
+
+  // ---------- Physics Step ----------
+  function step(dt) {
+    // --- Apply heat source (3x3 centered), physical watts -> energy ---
+    const P = Math.max(0, parseFloat(powerWEl.value) || 0);
+    const cx = Math.floor(N/2), cy = Math.floor(N/2);
+    const half = Math.floor(sourceSize/2);
+
+    const cells = sourceSize * sourceSize;
+    const dE = (P * dt) / cells; // J per source cell
+
+    for (let yy = cy-half; yy <= cy+half; yy++) {
+      for (let xx = cx-half; xx <= cx+half; xx++) {
+        if (xx>=0 && xx<N && yy>=0 && yy<N) {
+          E[idx(xx,yy)] += dE;
+        }
+      }
+    }
+
+    // Convert E -> T (for diffusion calculation), since diffusion uses neighbor avg T
+    for (let i=0;i<N*N;i++) T[i] = E[i] / Ccell;
+
+    // --- Diffusion term: ΔT = α*(avg(nei)-T)*dt ---
+    // We'll compute T2 as updated temperatures from diffusion only,
+    // then convert back to energy E2 = T2*Ccell and apply convection transport on energy.
+    const alpha = Math.max(0, parseFloat(diffRateEl.value) || 0);
+
+    for (let y=0;y<N;y++){
+      for (let x=0;x<N;x++){
+        const i = idx(x,y);
+        const t0 = T[i];
+
+        let sum = 0, cnt = 0;
+
+        // Insulated/no-flux boundary: only include existing neighbors
+        if (x > 0)   { sum += T[idx(x-1,y)]; cnt++; }
+        if (x < N-1) { sum += T[idx(x+1,y)]; cnt++; }
+        if (y > 0)   { sum += T[idx(x,y-1)]; cnt++; }
+        if (y < N-1) { sum += T[idx(x,y+1)]; cnt++; }
+
+        const avg = (cnt>0) ? (sum / cnt) : t0;
+        const dT = alpha * (avg - t0) * dt;
+
+        T2[i] = t0 + dT;
+      }
+    }
+
+    // Convert diffused temperatures back to energy
+    for (let i=0;i<N*N;i++) E2[i] = T2[i] * Ccell;
+
+    // --- Convection-like conservative transport on energy ---
+    // Your requested directional bias:
+    // upwardtransfer = convectionRate * T
+    // sidetransfer   = diffusionRate * T
+    // downwardrate   = diffusionRate * 0.2 * T
+    //
+    // Here we do it on energy E to conserve total heat.
+    const beta = Math.max(0, parseFloat(convRateEl.value) || 0);
+    const sideRate = alpha;            // per your statement (sidetransfer = diffusionrate*T)
+    const downRate = alpha * 0.2;
+
+    // Start new E as post-diffusion E2, then move energy between cells.
+    // We'll accumulate in-place into E (reuse E as output), and use E2 as input snapshot.
+    E.set(E2);
+
+    for (let y=0;y<N;y++){
+      for (let x=0;x<N;x++){
+        const i = idx(x,y);
+        const e0 = E2[i];
+        if (e0 <= 0) continue;
+
+        // Compute intended outflows
+        let outUp = (y > 0)   ? (beta     * e0 * dt) : 0;
+        let outDn = (y < N-1) ? (downRate * e0 * dt) : 0;
+        let outL  = (x > 0)   ? (sideRate * e0 * dt) : 0;
+        let outR  = (x < N-1) ? (sideRate * e0 * dt) : 0;
+
+        let outSum = outUp + outDn + outL + outR;
+
+        // Ensure we don't remove more energy than exists in the cell
+        if (outSum > e0) {
+          const s = e0 / outSum;
+          outUp *= s; outDn *= s; outL *= s; outR *= s;
+          outSum = e0;
+        }
+
+        // Remove from current cell (in E output)
+        E[i] -= outSum;
+
+        // Add to neighbors (in E output)
+        if (outUp > 0) E[idx(x,y-1)] += outUp;
+        if (outDn > 0) E[idx(x,y+1)] += outDn;
+        if (outL  > 0) E[idx(x-1,y)] += outL;
+        if (outR  > 0) E[idx(x+1,y)] += outR;
+      }
+    }
+
+    // Update T from final energy
+    for (let i=0;i<N*N;i++) T[i] = E[i] / Ccell;
+  }
+
+  // ---------- Rendering ----------
+  function render() {
+    // Find current min/max for autoscaling
+    let tMin = Infinity, tMax = -Infinity;
+    for (let i=0;i<N*N;i++){
+      const v = T[i];
+      if (v < tMin) tMin = v;
+      if (v > tMax) tMax = v;
+    }
+
+    const w = canvas.width, h = canvas.height;
+    const cellW = w / N, cellH = h / N;
+
+    // Draw grid cells
+    for (let y=0;y<N;y++){
+      for (let x=0;x<N;x++){
+        const t = T[idx(x,y)];
+        ctx.fillStyle = tempToColor(t, tMin, tMax);
+        ctx.fillRect(x*cellW, y*cellH, cellW+0.5, cellH+0.5);
+      }
+    }
+
+    // Overlay heat source outline (center 3x3)
+    const cx = Math.floor(N/2), cy = Math.floor(N/2);
+    const half = Math.floor(sourceSize/2);
+    ctx.save();
+    ctx.strokeStyle = "rgba(255,255,255,0.75)";
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6,4]);
+    ctx.strokeRect((cx-half)*cellW, (cy-half)*cellH, sourceSize*cellW, sourceSize*cellH);
+    ctx.restore();
+
+    // Measurement square
+    ctx.save();
+    ctx.strokeStyle = "rgba(10,10,10,0.55)";
+    ctx.lineWidth = 6;
+    ctx.strokeRect(selX*cellW, selY*cellH, selSize*cellW, selSize*cellH);
+    ctx.strokeStyle = "rgba(255,255,255,0.9)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(selX*cellW, selY*cellH, selSize*cellW, selSize*cellH);
+    ctx.restore();
+
+    // Optional subtle grid lines (very light)
+    ctx.save();
+    ctx.globalAlpha = 0.06;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 1;
+    for (let i=1;i<N;i++){
+      ctx.beginPath(); ctx.moveTo(i*cellW,0); ctx.lineTo(i*cellW,h); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,i*cellH); ctx.lineTo(w,i*cellH); ctx.stroke();
+    }
+    ctx.restore();
+
+    // Update monitor: max temp inside selection square
+    let maxT = -Infinity;
+    for (let y=selY; y<selY+selSize; y++){
+      for (let x=selX; x<selX+selSize; x++){
+        const v = T[idx(x,y)];
+        if (v > maxT) maxT = v;
+      }
+    }
+    const maxC = maxT - 273.15;
+
+    kpiMax.textContent = `${maxC.toFixed(2)} °C`;
+    kpiMaxK.textContent = `${maxT.toFixed(2)} K`;
+
+    // Also show min/max for context (optional, but handy)
+    // (We keep it subtle in the time panel line)
+    kpiDt.textContent = `dt: ${fixedDt.toFixed(3)} s • range: ${(tMin-273.15).toFixed(1)}..${(tMax-273.15).toFixed(1)} °C`;
+  }
+
+  // ---------- Main Loop ----------
+  function loop(ts) {
+    const elapsed = (ts - lastTS) / 1000;
+    lastTS = ts;
+
+    if (running) {
+      // Use fixed timestep for stable behavior
+      let remaining = Math.min(elapsed, fixedDt * maxSubSteps);
+      while (remaining > 1e-9) {
+        const dt = Math.min(fixedDt, remaining);
+        step(dt);
+        simTime += dt;
+        remaining -= dt;
+      }
+      kpiTime.textContent = `${simTime.toFixed(2)} s`;
+    }
+
+    render();
+    requestAnimationFrame(loop);
+  }
+
+  // ---------- Mouse Interaction (drag measurement square) ----------
+  let dragging = false;
+  let dragOffsetX = 0, dragOffsetY = 0;
+
+  function canvasToCell(evt) {
+    const rect = canvas.getBoundingClientRect();
+    const px = (evt.clientX - rect.left) * (canvas.width / rect.width);
+    const py = (evt.clientY - rect.top)  * (canvas.height / rect.height);
+    const x = Math.floor(px / (canvas.width / N));
+    const y = Math.floor(py / (canvas.height / N));
+    return {x: clamp(x,0,N-1), y: clamp(y,0,N-1)};
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const {x,y} = canvasToCell(e);
+    // If click inside selection, begin dragging
+    if (x >= selX && x < selX+selSize && y >= selY && y < selY+selSize) {
+      dragging = true;
+      dragOffsetX = x - selX;
+      dragOffsetY = y - selY;
+    } else {
+      // Click elsewhere moves selection centered at click
+      selX = clamp(x - Math.floor(selSize/2), 0, N - selSize);
+      selY = clamp(y - Math.floor(selSize/2), 0, N - selSize);
+    }
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const {x,y} = canvasToCell(e);
+    selX = clamp(x - dragOffsetX, 0, N - selSize);
+    selY = clamp(y - dragOffsetY, 0, N - selSize);
+  });
+
+  window.addEventListener('mouseup', () => dragging = false);
+  canvas.addEventListener('mouseleave', () => dragging = false);
+
+  // ---------- UI Wiring ----------
+  function syncLabels() {
+    diffusionRate = parseFloat(diffRateEl.value);
+    convectionRate = parseFloat(convRateEl.value);
+    diffRateVal.textContent = diffusionRate.toFixed(2);
+    convRateVal.textContent = convectionRate.toFixed(2);
+
+    selSize = parseInt(selSizeEl.value, 10);
+    selSizeVal.textContent = selSize;
+    selSizeVal2.textContent = selSize;
+
+    // Keep selection within bounds after size change
+    selX = clamp(selX, 0, N - selSize);
+    selY = clamp(selY, 0, N - selSize);
+  }
+
+  diffRateEl.addEventListener('input', syncLabels);
+  convRateEl.addEventListener('input', syncLabels);
+  selSizeEl.addEventListener('input', syncLabels);
+
+  // Any change to physical props should recompute capacity scaling
+  [rhoEl, cpEl, thicknessEl, sizeLEl].forEach(el => {
+    el.addEventListener('change', () => {
+      recalcCapacityAndArea();
+    });
+  });
+
+  ambientCEl.addEventListener('change', () => {
+    ambientK = (parseFloat(ambientCEl.value) + 273.15);
+  });
+
+  btnToggle.addEventListener('click', () => {
+    running = !running;
+    btnToggle.textContent = running ? 'Pause' : 'Run';
+    btnToggle.classList.toggle('btn-accent', running);
+  });
+
+  btnReset.addEventListener('click', () => {
+    recalcCapacityAndArea();
+    resetField();
+  });
+
+  // ---------- Init ----------
+  syncLabels();
+  recalcCapacityAndArea();
+  resetField();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
