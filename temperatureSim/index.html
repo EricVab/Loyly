@@ -369,7 +369,7 @@
     // Here we do it on energy E to conserve total heat.
     const beta = Math.max(0, parseFloat(convRateEl.value) || 0);
     const sideRate = alpha;            // per your statement (sidetransfer = diffusionrate*T)
-    const downRate = alpha * 0.2;
+    const downRate = alpha * 0.8;
 
     // Start new E as post-diffusion E2, then move energy between cells.
     // We'll accumulate in-place into E (reuse E as output), and use E2 as input snapshot.
