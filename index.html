@@ -5,6 +5,25 @@
   <title>POCv5</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
+    /* --- Auto Water popup toast --- */
+    .toast {
+      position: fixed;
+      bottom: 22px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1f6feb;
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 10px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      font: 600 14px system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      z-index: 9999;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 160ms ease-in-out;
+    }
+    .toast.show { opacity: 1; }
+
     :root {
       --w: 320px;
       --h: 14px;
@@ -596,6 +615,94 @@
     //Tootal number of wins achieved
     let winCount = 0;
     const WIN_STORAGE_KEY = 'winst_total';
+    /* ------------------------------------------------------------
+    Auto Water chance system (computer-driven "water!" at run start)
+    - Chance increases by 10% per completed run where it did NOT occur.
+    - Occurs at most once, only near the start (fires after 0.5s).
+    - Resets counter to 0 immediately when it occurs.
+    ------------------------------------------------------------ */
+    const AUTO_WATER_STORAGE_KEY = 'games_since_auto_water';
+    let runSessionId = 0;                 // increments on each Go In / startRun
+    let autoWaterTriggeredThisRun = false;
+    let runCountedForAutoWater = false;
+
+    function getGamesSinceAutoWater() {
+      const raw = localStorage.getItem(AUTO_WATER_STORAGE_KEY);
+      const n = raw ? Number(raw) : 0;
+      return Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+    }
+    function setGamesSinceAutoWater(n) {
+      localStorage.setItem(AUTO_WATER_STORAGE_KEY, String(Math.max(0, Math.floor(n))));
+    }
+    function resetGamesSinceAutoWater() {
+      setGamesSinceAutoWater(0);
+    }
+    function incrementGamesSinceAutoWater() {
+      setGamesSinceAutoWater(getGamesSinceAutoWater() + 1);
+    }
+    function computeAutoWaterProbability() {
+      // 10% per game, capped at 100%
+      return Math.min(1, 0.1 * getGamesSinceAutoWater());
+    }
+
+    function showToast(msg) {
+      const el = document.createElement('div');
+      el.className = 'toast';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      // force reflow so transition applies
+      void el.offsetWidth;
+      el.classList.add('show');
+      setTimeout(() => {
+        el.classList.remove('show');
+        setTimeout(() => el.remove(), 200);
+      }, 1200);
+    }
+
+    /**
+     * Roll once when the run starts. If it hits, fire after ~0.5s.
+     * Only valid if we're still in the same run and still playing.
+     */
+    function chanceOneAtRunStart() {
+      runSessionId += 1;
+      autoWaterTriggeredThisRun = false;
+      runCountedForAutoWater = false;
+
+      const p = computeAutoWaterProbability();
+      const occurs = Math.random() < p;
+      if (!occurs) return;
+
+      const mySession = runSessionId;
+      setTimeout(() => {
+        // Only fire if we're still in the same run and still playing
+        if (mySession !== runSessionId) return;
+        if (!GameState.is('playing')) return;
+        if (autoWaterTriggeredThisRun) return;
+
+        autoWaterTriggeredThisRun = true;
+
+        // reset probability ladder immediately on occurrence
+        resetGamesSinceAutoWater();
+
+        // Apply the exact water effect, but as computer (no inventory consumption)
+        applyWaterEffect({ consumeInventory: false, byComputer: true });
+      }, 500);
+    }
+
+    /**
+     * Called exactly once when a run ends (win/lose).
+     * If auto water did not trigger this run -> increase chance for next run.
+     */
+    function finalizeAutoWaterCounterOnRunEnd() {
+      if (runCountedForAutoWater) return;
+      runCountedForAutoWater = true;
+
+      if (!autoWaterTriggeredThisRun) {
+        incrementGamesSinceAutoWater();
+      }
+      // else: already reset on trigger, do not increment
+    }
+    
 
     /* ------------------------------------------------------------
        Initialization
@@ -681,19 +788,27 @@
 
       running = true;
       GameState.set('playing');
-
+      chanceOneAtRunStart();
       updateUI();
       syncUIState();
     }
 
     function endRunTo(state, message = '') {
       // Single exit point for run-ending states
+
+      // If we are ending from an actual run, update the probability ladder.
+      // Only count completed runs: win/lose.
+      if (GameState.is('playing') && (state === 'win' || state === 'lose')) {
+        finalizeAutoWaterCounterOnRunEnd();
+      }
+
       running = false;
       GameState.set(state);
       document.getElementById('time-up').textContent = message;
       syncUIState();
       updateUI();
     }
+
 
     function computePotentialReward() {
       return NPCS.reduce((acc, n) => {
@@ -897,8 +1012,11 @@
     /* ------------------------------------------------------------
        Actions (consume inventory)
        ------------------------------------------------------------ */
-    function onWater() {
-      if (!consumeItem('WATER')) return;
+    function applyWaterEffect({ consumeInventory = true, byComputer = false } = {}) {
+      // Manual use consumes inventory; computer event does NOT.
+      if (consumeInventory) {
+        if (!consumeItem('WATER')) return;
+      }
 
       const [uMin, uMax] = CONFIG.CLICK.USER_REDUCTION_RANGE;
       const [nMin, nMax] = CONFIG.CLICK.NPC_REDUCTION_RANGE;
@@ -916,6 +1034,14 @@
       updateFinishedFlagsAfterManualDamage();
       updateUI();
       checkEndState();
+
+      if (byComputer) {
+        showToast('water!');
+      }
+    }
+    function onWater() {
+      // player button path (uses inventory as before)
+      applyWaterEffect({ consumeInventory: true, byComputer: false });
     }
 
     function onBeer() {
@@ -1129,6 +1255,16 @@
           info.textContent = '';
         }
       }
+      const chanceEl = document.getElementById('auto-water-chance');
+      if (chanceEl) {
+        if (GameState.is('playing')){
+          chanceEl.textContent = '';
+        } else {
+          const p = computeAutoWaterProbability();
+          const pct = Math.round(p*100);
+          chanceEl.textContent = "Auto Water chance: " + pct;
+        }
+      }
 
       // Keep economy UI fresh
       updateEconomyUI();
@@ -1186,6 +1322,7 @@
     <div class="row small">
       <span id="effect-tags" class="tag"></span>
       <span id="run-info" class="tag"></span>
+      <span id="auto-water-chance" class="tag"></span>
     </div>
 
     <div id="time-up" class="muted"></div>
