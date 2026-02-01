@@ -125,7 +125,7 @@
 
       USER: {
         MAX_STAMINA: 100,           // starting & cap for user stamina
-        BASE_TICK_SPEED: 3,         // default stamina drain speed [units per second]
+        BASE_TICK_SPEED: 2,         // default stamina drain speed [units per second]
         DISPLAY_DECIMALS: 0
       },
 
@@ -142,8 +142,8 @@
 
       CLICK: {
         // Ranges for click effects (inclusive bounds)
-        USER_REDUCTION_RANGE: [25, 50], // Water — user damage
-        NPC_REDUCTION_RANGE: [25, 50],  // Water — per NPC damage
+        USER_REDUCTION_RANGE: [10, 15], // Water — user damage
+        NPC_REDUCTION_RANGE: [10, 15],  // Water — per NPC damage
         BIRCH_REDUCTION_RANGE: [2, 5], // Birch — affects targeted NPC only
         BIRCH_AFFECTED_BY_HAT: false    // whether Hat also scales Birch clicks
       },
@@ -205,7 +205,7 @@
 
       DELAYS: {
         // "Delay" modifier: disable button after pressing for this many seconds
-        WATER: 0.1,
+        WATER: 10,
         BEER: 5,
         ICE_CREAM: 10,
         HAT: 15,
