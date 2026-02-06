@@ -1,3 +1,12 @@
+import { useState } from "react";
+import "../styles/stamina.css";
+
 export default function Stamina() {
-  return <div>stamina bar</div>
+  const [health, setHealth] = useState<number>(100);
+
+  return (
+    <div className="ly-stamina">
+      <div className="ly-stamina__bar" style={{ width: `${health}%` }}></div>
+    </div>
+  );
 }

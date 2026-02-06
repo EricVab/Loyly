@@ -13,10 +13,7 @@ export default function User() {
         <button>plunge</button>
         <button>x-ray</button>
         <button>hat</button>
-        <button>exit</button>
-        <button>reset</button>
       </div>
     </>
-
   );
 }
