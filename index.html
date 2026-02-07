@@ -77,11 +77,22 @@
       padding: 22px;
     }
 
-    .row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-wrap: wrap;
+    .controls {
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.18);
+      display:grid;
+      gap: 12px;
+      align-content: start;
+    }
+
+    .controls h3{
+      margin: 0 0 8px;
+      font-size: 14px;
+      color: var(--muted);
+      font-weight: 600;
+      letter-spacing: 0.3px;
     }
 
     .stack {
@@ -1018,7 +1029,8 @@
           <div class="bar-container npc-scan">
             <div class="bar npc-bar" style="width:${npc.percent()}%"></div>
           </div>
-          <div class="row">
+          <div class="controls">
+            <h3>Abilities</h3>
             <button class="birch-btn" data-idx="${i}">Birch</button>
             <span class="npc-status tag"></span>
           </div>
@@ -1355,21 +1367,16 @@
       <div class="section-header">
         <h2>User</h2>
         <div>Coins: <strong id="coins">0</strong></div>
-      </div>
-    </div>
-    <div class="stack">
-      <div class="row ">
-        <div>
-          <strong>Stamina:</strong>
-          <span id="user-value"></span>
-          <span class="tag" id="speed-tag"></span>
+        <strong>Stamina:</strong>
+        <span id="user-value"></span>
+        <span class="tag" id="speed-tag"></span>
+        <div class="bar-container">
+          <div id="user-bar" class="bar"></div>
         </div>
       </div>
     </div>
-    <div class="bar-container">
-      <div id="user-bar" class="bar"></div>
-    </div>
-    <div class="row">
+    <div class="controls">
+      <h3>Abilities</h3>
       <div class="right-buttons">
         <button id="action-btn">Water</button>
         <button id="beer-btn">Beer</button>
@@ -1393,7 +1400,8 @@
   </div>
 
   <div class="panel">
-    <div class="row">
+    <div class="controls">
+      <h3>Abilities</h3>
       <button id="buy-water" class="shop-btn">Buy Water</button>
       <button id="buy-beer" class="shop-btn">Buy Beer</button>
       <button id="buy-wood" class="shop-btn">Buy Wood</button>
