@@ -115,7 +115,7 @@
       top: 0;
       bottom: 0;
       width: 100%;
-      background: linear-gradient(90deg, #2ecc71, #27ae60);
+      background: linear-gradient(90deg, #cc2e2e, #6bf833);
     }
 
     .npc {
@@ -128,8 +128,16 @@
     }
 
     button {
-      padding: 6px 10px;
-      cursor: pointer;
+      width: var(--btn-size);
+      height: var(--btn-size);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--btn-radius);
+      background: rgba(255,255,255,0.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      position:relative;
     }
 
     button:disabled {
@@ -138,10 +146,35 @@
     }
 
     .right-buttons {
-      display: inline-flex;
-      gap: 8px;
-      margin-left: 10px;
-      flex-wrap: wrap;
+      width: var(--btn-size);
+      height: var(--btn-size);
+      border: 1px solid rgba(255,255,255,0.12);
+      border-radius: var(--btn-radius);
+      background: rgba(255,255,255,0.06);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+      display:grid;
+      place-items:center;
+      cursor:pointer;
+      position:relative;
+    }
+
+    /* Hover: become colorful, slight lift */
+    .button:hover{
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+    }
+    .button:hover img{
+      filter: grayscale(0) saturate(1.15) brightness(1.05);
+      opacity: 1;
+    }
+
+    /* Press (mouse down): gets bigger */
+    .right-buttons:active{
+      transform: translateY(-2px) scale(1.07);
+    }
+    .right-buttons:active img{
+      transform: scale(1.08);
     }
 
     .muted {
@@ -1030,7 +1063,6 @@
             <div class="bar npc-bar" style="width:${npc.percent()}%"></div>
           </div>
           <div class="controls">
-            <h3>Abilities</h3>
             <button class="birch-btn" data-idx="${i}">Birch</button>
             <span class="npc-status tag"></span>
           </div>
