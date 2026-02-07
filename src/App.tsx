@@ -1,6 +1,5 @@
 import { Link } from "react-router";
 import Shop from "./components/Shop";
-import User from "./components/User";
 
 function App() {
   return (
@@ -8,7 +7,6 @@ function App() {
       <Link to="/sauna">
         <button>go to sauna</button>
       </Link>
-      <User />
       <Shop />
     </>
   );

@@ -5,15 +5,6 @@ export default function User() {
     <>
       <h2>User</h2>
       <Stamina />
-      <div>
-        <button>water</button>
-        <button>beer</button>
-        <button>wood</button>
-        <button>ice cream</button>
-        <button>plunge</button>
-        <button>x-ray</button>
-        <button>hat</button>
-      </div>
     </>
   );
 }
