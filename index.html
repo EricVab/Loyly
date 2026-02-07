@@ -44,14 +44,37 @@
     }
 
     body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: var(--text);
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       padding: 20px;
       background:
         radial-gradient(1200px 600px at 20% 10%, rgba(85,130,255,.25), transparent 60%),
         radial-gradient(900px 500px at 80% 30%, rgba(255,120,120,.20), transparent 55%),
         linear-gradient(180deg, rgba(0,0,0,.0), rgba(0,0,0,.25)),
-        url("assets/bg.png") center / cover no-repeat,
         var(--bg);
+    }
+
+    .ui {
+      width: min(920px, 92vw);
+      border-radius: var(--radius);
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow: clip;
+    }
+
+    /* ---------- Layout (grid) ---------- */
+    .ui-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 18px;
+      padding: 22px;
     }
 
     .row {
@@ -127,9 +150,24 @@
     }
 
     .section-header {
-      display: flex;
-      gap: 12px;
+      grid-column: 1 / -1;
+      display:flex;
+      justify-content: space-between;
       align-items: baseline;
+      gap: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+
+    .title {
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
     }
 
     /* XRAY transparency (NPC value + bar only) */
@@ -1306,28 +1344,34 @@
 </head>
 
 <body>
-  <div class="section-header">
-    <h2>User</h2>
-    <div>Coins: <strong id="coins">0</strong></div>
-  </div>
-
-  <div class="stack">
-    <div class="row">
-      <div>
-        <strong>Stamina:</strong>
-        <span id="user-value"></span>
-        <span class="tag" id="speed-tag"></span>
+  <main class="ui">
+    <div class="ui-grid">
+      <div class="section-header">
+        <div>
+          <div class="title">Loyly Game</div>
+          <div class="subtitle">Version 0.0.5</div>
+        </div>
+      </div>
+      <div class="section-header">
+        <h2>User</h2>
+        <div>Coins: <strong id="coins">0</strong></div>
       </div>
     </div>
-
+    <div class="stack">
+      <div class="row ">
+        <div>
+          <strong>Stamina:</strong>
+          <span id="user-value"></span>
+          <span class="tag" id="speed-tag"></span>
+        </div>
+      </div>
+    </div>
     <div class="bar-container">
       <div id="user-bar" class="bar"></div>
     </div>
-
     <div class="row">
-      <button id="action-btn">Water</button>
-
       <div class="right-buttons">
+        <button id="action-btn">Water</button>
         <button id="beer-btn">Beer</button>
         <button id="wood-btn">Wood</button>
         <button id="icecream-btn">Ice Cream</button>
