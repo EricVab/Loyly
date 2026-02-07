@@ -190,6 +190,13 @@
     .right-buttons:active img{
       transform: scale(1.08);
     }
+    .row tag{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
 
     .muted {
       color: #b00;
@@ -1426,8 +1433,8 @@
         <span id="auto-water-chance" class="tag"></span>
       </div>
     </div>
-    <h3>Action</h3>
     <div class="panel">
+      <h3>Action</h3>
       <div class="controls">
         <button id="action-btn">Water</button>
         <button id="beer-btn">Beer</button>
@@ -1436,7 +1443,6 @@
         <button id="plunge-btn">Plunge</button>
         <button id="xray-btn">Xray</button>
         <button id="hat-btn">Hat</button>
-        <button id="exit-btn">Exit</button>
         <button id="reset-btn">Reset</button>
       </div>
     </div>
@@ -1465,6 +1471,7 @@
     </div>
 
     <button id="go-btn">Go In</button>
+    <button id="exit-btn">Exit</button>
   </div>
 
   <hr />
