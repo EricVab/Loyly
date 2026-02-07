@@ -27,11 +27,31 @@
     :root {
       --w: 320px;
       --h: 14px;
+      --bg: #0b0f1a;
+      --panel: rgba(18, 24, 40, 0.72);
+      --panel-border: rgba(255,255,255,0.12);
+      --text: rgba(255,255,255,0.90);
+      --muted: rgba(255,255,255,0.65);
+
+      --radius: 18px;
+      --shadow: 0 20px 60px rgba(0,0,0,0.55);
+      --glow: 0 0 0 3px rgba(120, 190, 255, 0.15);
+
+      --btn-size: 92px;         /* icon button size */
+      --btn-radius: 20px;       /* icon button corner radius */
+      --btn-gap: 14px;
+      --trans: 180ms cubic-bezier(.2,.9,.2,1);
     }
 
     body {
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       padding: 20px;
+      background:
+        radial-gradient(1200px 600px at 20% 10%, rgba(85,130,255,.25), transparent 60%),
+        radial-gradient(900px 500px at 80% 30%, rgba(255,120,120,.20), transparent 55%),
+        linear-gradient(180deg, rgba(0,0,0,.0), rgba(0,0,0,.25)),
+        url("assets/bg.png") center / cover no-repeat,
+        var(--bg);
     }
 
     .row {
