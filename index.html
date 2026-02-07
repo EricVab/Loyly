@@ -150,10 +150,10 @@
     }
 
     .panel {
-      padding: 8px 10px;
-      border: 1px dashed #aaa;
-      background: #fafafa;
-      margin-top: 12px;
+      padding: 16px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(0,0,0,0.18);
     }
 
     .small {
@@ -1374,6 +1374,11 @@
           <div id="user-bar" class="bar"></div>
         </div>
       </div>
+      <div class="section-header">
+        <span id="effect-tags" class="tag"></span>
+        <span id="run-info" class="tag"></span>
+        <span id="auto-water-chance" class="tag"></span>
+      </div>
     </div>
     <div class="controls">
       <h3>Abilities</h3>
@@ -1389,19 +1394,11 @@
         <button id="reset-btn">Reset</button>
       </div>
     </div>
-
-    <div class="row small">
-      <span id="effect-tags" class="tag"></span>
-      <span id="run-info" class="tag"></span>
-      <span id="auto-water-chance" class="tag"></span>
-    </div>
-
     <div id="time-up" class="muted"></div>
   </div>
 
   <div class="panel">
     <div class="controls">
-      <h3>Abilities</h3>
       <button id="buy-water" class="shop-btn">Buy Water</button>
       <button id="buy-beer" class="shop-btn">Buy Beer</button>
       <button id="buy-wood" class="shop-btn">Buy Wood</button>
