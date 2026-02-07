@@ -132,12 +132,19 @@
       height: var(--btn-size);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: var(--btn-radius);
-      background: rgba(255,255,255,0.06);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
+      background: rgba(255, 255, 255, 0.301);
       display:grid;
       place-items:center;
       cursor:pointer;
       position:relative;
+      transition:
+        transform var(--trans),
+        box-shadow var(--trans),
+        border-color var(--trans),
+        background var(--trans);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
     }
 
     button:disabled {
@@ -151,22 +158,26 @@
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: var(--btn-radius);
       background: rgba(255,255,255,0.06);
-      box-shadow: 0 10px 24px rgba(0,0,0,0.25);
       display:grid;
       place-items:center;
       cursor:pointer;
       position:relative;
+      transition:
+        transform var(--trans),
+        box-shadow var(--trans),
+        border-color var(--trans),
+        background var(--trans);
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
+      outline: none;
     }
 
-    /* Hover: become colorful, slight lift */
-    .button:hover{
-      transform: translateY(-2px);
-      border-color: rgba(255,255,255,0.22);
-      background: rgba(255,255,255,0.08);
+    /* Press (mouse down): gets bigger */
+    .button:active{
+      transform: translateY(-2px) scale(1.07);
     }
-    .button:hover img{
-      filter: grayscale(0) saturate(1.15) brightness(1.05);
-      opacity: 1;
+    .button:active img{
+      transform: scale(1.08);
     }
 
     /* Press (mouse down): gets bigger */
