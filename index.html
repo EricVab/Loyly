@@ -174,22 +174,42 @@
       -webkit-tap-highlight-color: transparent;
       outline: none;
     }
+    .button:hover{
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+    }
+
+    .right-buttons:hover{
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+    }
 
     /* Press (mouse down): gets bigger */
     .button:active{
       transform: translateY(-2px) scale(1.07);
-    }
-    .button:active img{
-      transform: scale(1.08);
     }
 
     /* Press (mouse down): gets bigger */
     .right-buttons:active{
       transform: translateY(-2px) scale(1.07);
     }
-    .right-buttons:active img{
-      transform: scale(1.08);
+
+    /* Click pulse animation (class added briefly in JS) */
+    @keyframes pulse {
+      0%   { transform: translateY(-2px) scale(1.02); }
+      40%  { transform: translateY(-2px) scale(1.11); }
+      100% { transform: translateY(-2px) scale(1.02); }
     }
+    .button.pulse{
+      animation: pulse 220ms cubic-bezier(.2,.9,.2,1);
+    }
+
+    .right-buttons.pulse{
+      animation: pulse 220ms cubic-bezier(.2,.9,.2,1);
+    }
+
     .row tag{
       display:flex;
       align-items:center;
@@ -1446,7 +1466,6 @@
         <button id="reset-btn">Reset</button>
       </div>
     </div>
-    <div id="time-up" class="muted"></div>
   </div>
   <div class="panel">
     <h3>Store</h3>
@@ -1469,9 +1488,11 @@
       Xray: <span id="inv-XRAY">0</span>
       Hat: <span id="inv-HAT">0</span>
     </div>
-
-    <button id="go-btn">Go In</button>
-    <button id="exit-btn">Exit</button>
+    <div class="controls">
+      <button id="go-btn">Go In</button>
+      <button id="exit-btn">Exit</button>
+    </div>
+    <div id="time-up" class="muted"></div>
   </div>
 
   <hr />
