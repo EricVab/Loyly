@@ -97,6 +97,7 @@
 
     .stack {
       display: flex;
+      flex-wrap: wrap;
       gap: 6px;
       margin-bottom: 20px;
     }
@@ -1425,24 +1426,26 @@
         <span id="auto-water-chance" class="tag"></span>
       </div>
     </div>
-    <div class="controls">
-      <h3>Abilities</h3>
-      <div class="right-buttons">
-        <button id="action-btn">Water</button>
-        <button id="beer-btn">Beer</button>
-        <button id="wood-btn">Wood</button>
-        <button id="icecream-btn">Ice Cream</button>
-        <button id="plunge-btn">Plunge</button>
-        <button id="xray-btn">Xray</button>
-        <button id="hat-btn">Hat</button>
-        <button id="exit-btn">Exit</button>
-        <button id="reset-btn">Reset</button>
+    <h3>Action</h3>
+    <div class="panel">
+      <div class="controls">
+        <div class="right-buttons">
+          <button id="action-btn">Water</button>
+          <button id="beer-btn">Beer</button>
+          <button id="wood-btn">Wood</button>
+          <button id="icecream-btn">Ice Cream</button>
+          <button id="plunge-btn">Plunge</button>
+          <button id="xray-btn">Xray</button>
+          <button id="hat-btn">Hat</button>
+          <button id="exit-btn">Exit</button>
+          <button id="reset-btn">Reset</button>
+        </div>
       </div>
     </div>
     <div id="time-up" class="muted"></div>
   </div>
-
   <div class="panel">
+    <h3>Store</h3>
     <div class="controls">
       <button id="buy-water" class="shop-btn">Buy Water</button>
       <button id="buy-beer" class="shop-btn">Buy Beer</button>
@@ -1452,7 +1455,7 @@
       <button id="buy-plunge" class="shop-btn">Buy Plunge</button>
       <button id="buy-xray" class="shop-btn">Buy Xray</button>
     </div>
-
+    <h3>Inventory</h3>
     <div class="row tag">
       Water: <span id="inv-WATER">0</span>
       Beer: <span id="inv-BEER">0</span>
