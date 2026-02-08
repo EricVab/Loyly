@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>POCv5</title>
+  <title>POCv6</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
     /* --- Auto Water popup toast --- */
@@ -37,7 +37,7 @@
       --shadow: 0 20px 60px rgba(0,0,0,0.55);
       --glow: 0 0 0 3px rgba(120, 190, 255, 0.15);
 
-      --btn-size: 92px;         /* icon button size */
+      --btn-size: 60px;         /* icon button size */
       --btn-radius: 20px;       /* icon button corner radius */
       --btn-gap: 14px;
       --trans: 180ms cubic-bezier(.2,.9,.2,1);
@@ -69,37 +69,70 @@
       overflow: clip;
     }
 
-    /* ---------- Layout (grid) ---------- */
     .ui-grid {
       display: grid;
-      grid-template-columns: 1.2fr 0.8fr;
+      grid-template-columns: 1fr 2fr;
       gap: 18px;
       padding: 22px;
     }
 
-    .controls {
-      padding: 16px;
+    @media (max-width: 820px){
+      .ui-grid { grid-template-columns: 1fr; }
+    }
+
+    .header {
+      grid-column: 1 / -1;
+      display:flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding-bottom: 1px;
+    }
+
+    .title {
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: 0.3px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+    }
+    
+    .stats {
+      padding: 14px;
       border-radius: 14px;
       border: 1px solid rgba(255,255,255,0.10);
       background: rgba(0,0,0,0.18);
-      display:flex;
-      gap: 12px;
-      align-content: start;
     }
 
-    .controls h3{
-      margin: 0 0 8px;
+    .stats h3 {
+      margin: 0 0 10px;
       font-size: 14px;
       color: var(--muted);
       font-weight: 600;
       letter-spacing: 0.3px;
     }
 
+    .stat-row {
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      padding: 3px 0;
+      border-top: 1px solid rgba(255,255,255,0.06);
+    }
+    .stat-row:first-of-type { border-top: 0; }
+
+    .stat-label { color: var(--muted); font-size: 13px; }
+    .stat-value { font-weight: 700; font-size: 16px; }
+
     .stack {
-      display: flex;
-      flex-wrap: wrap;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-auto-rows: 1fr;
       gap: 6px;
-      margin-bottom: 20px;
+      margin-bottom: 6px;
     }
 
     .bar-container {
@@ -108,6 +141,7 @@
       border: 1px solid #000;
       position: relative;
       background: #eee;
+      border-radius: 999px;
     }
 
     .bar {
@@ -117,6 +151,7 @@
       bottom: 0;
       width: 100%;
       background: linear-gradient(90deg, #cc2e2e, #6bf833);
+      border-radius: 999px;
     }
 
     .npc {
@@ -128,12 +163,12 @@
       opacity: 0.7;
     }
 
-    button {
+    .button {
       width: var(--btn-size);
       height: var(--btn-size);
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: var(--btn-radius);
-      background: rgba(255, 255, 255, 0.059);
+      background: rgba(255, 255, 255, 0.475);
       box-shadow: 0 10px 24px rgba(0,0,0,0.25);
       display:grid;
       place-items:center;
@@ -148,20 +183,36 @@
       -webkit-tap-highlight-color: transparent;
       outline: none;
     }
-
-    button:disabled {
+    .button:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
+    .button:hover{
+      transform: translateY(-2px);
+      border-color: rgba(255,255,255,0.22);
+      background: rgba(255,255,255,0.08);
+    }
+    .button:active{
+    transform: translateY(-2px) scale(1.07);
+    }
+    /* Click pulse animation (class added briefly in JS) */
+    @keyframes pulse {
+      0%   { transform: translateY(-2px) scale(1.02); }
+      40%  { transform: translateY(-2px) scale(1.11); }
+      100% { transform: translateY(-2px) scale(1.02); }
+    }
+    .button.pulse{
+      animation: pulse 220ms cubic-bezier(.2,.9,.2,1);
+    }
 
-    .right-buttons {
-      width: var(--btn-size);
-      height: var(--btn-size);
+    .sbutton {
+      padding: 7px 10px;
+      width: 200px;
       border: 1px solid rgba(255,255,255,0.12);
       border-radius: var(--btn-radius);
-      background: rgba(255,255,255,0.06);
+      background: rgba(255, 255, 255, 0.475);
       box-shadow: 0 10px 24px rgba(0,0,0,0.25);
-      display:flex;
+      display:grid;
       place-items:center;
       cursor:pointer;
       position:relative;
@@ -174,39 +225,25 @@
       -webkit-tap-highlight-color: transparent;
       outline: none;
     }
-    .button:hover{
+    .sbutton:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .sbutton:hover{
       transform: translateY(-2px);
       border-color: rgba(255,255,255,0.22);
-      background: rgba(255,255,255,0.08);
+      background: rgba(255, 255, 255, 0.4);
     }
-
-    .right-buttons:hover{
-      transform: translateY(-2px);
-      border-color: rgba(255,255,255,0.22);
-      background: rgba(255,255,255,0.08);
+    .sbutton:active{
+    transform: translateY(-2px) scale(1.07);
     }
-
-    /* Press (mouse down): gets bigger */
-    .button:active{
-      transform: translateY(-2px) scale(1.07);
-    }
-
-    /* Press (mouse down): gets bigger */
-    .right-buttons:active{
-      transform: translateY(-2px) scale(1.07);
-    }
-
     /* Click pulse animation (class added briefly in JS) */
     @keyframes pulse {
       0%   { transform: translateY(-2px) scale(1.02); }
       40%  { transform: translateY(-2px) scale(1.11); }
       100% { transform: translateY(-2px) scale(1.02); }
     }
-    .button.pulse{
-      animation: pulse 220ms cubic-bezier(.2,.9,.2,1);
-    }
-
-    .right-buttons.pulse{
+    .sbutton.pulse{
       animation: pulse 220ms cubic-bezier(.2,.9,.2,1);
     }
 
@@ -232,27 +269,6 @@
 
     .small {
       font-size: 12px;
-    }
-
-    .section-header {
-      grid-column: 1 / -1;
-      display:flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 12px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-    }
-
-    .title {
-      font-weight: 700;
-      font-size: 20px;
-      letter-spacing: 0.3px;
-    }
-
-    .subtitle {
-      color: var(--muted);
-      font-size: 13px;
     }
 
     /* XRAY transparency (NPC value + bar only) */
@@ -292,7 +308,7 @@
       },
 
       NPC: {
-        COUNT: 8,                   // how many NPCs to spawn
+        COUNT: 9,                   // how many NPCs to spawn
         BASE_TICK_SPEED: 3,         // NPC drain speed [units per second]
         DISPLAY_DECIMALS: 0,
         MU: 100,
@@ -350,7 +366,7 @@
       },
 
       ECONOMY: {
-        STARTING_COINS: 0,
+        STARTING_COINS: 100,
         PERSIST_COINS: false, // if true, store coins in localStorage across reloads
         STORAGE_KEY: 'coins_total'
       },
@@ -1096,23 +1112,20 @@
         node.className = 'npc';
         node.innerHTML = `
           <div>
-            <strong>NPC ${i + 1}:</strong>
             <span class="npc-value npc-scan">${npc.asText()}</span>
             <span class="tag npc-scan">(max ${npc.max})</span>
           </div>
           <div class="bar-container npc-scan">
             <div class="bar npc-bar" style="width:${npc.percent()}%"></div>
           </div>
-          <div class="controls">
-            <button class="birch-btn" data-idx="${i}">Birch</button>
-            <span class="npc-status tag"></span>
-          </div>
+          <button class="button" data-idx="${i}">Birch</button>
+          <span class="npc-status tag"></span>
         `;
         root.appendChild(node);
       });
 
       // Bind per-NPC Birch buttons with per-button delay
-      root.querySelectorAll('.birch-btn').forEach(btn => {
+      root.querySelectorAll('.button').forEach(btn => {
         const idx = parseInt(btn.dataset.idx, 10);
         btn.addEventListener('click', () => withDelay(btn, CONFIG.DELAYS.BIRCH, () => onBirch(idx)));
       });
@@ -1386,14 +1399,14 @@
       });
 
       // Speed hint
-      document.getElementById('speed-tag').textContent = `Speed: ${USER.tickSpeed.toFixed(2)}/s`;
+      document.getElementById('speed-tag').textContent = `${USER.tickSpeed.toFixed(1)}/s`;
 
       // Potential reward
       const info = document.getElementById('run-info');
       if (info) {
         if (GameState.isOneOf(['menu', 'win', 'lose'])) {
           const passiveBonus = computePassiveBaseStaminaFromWins(winCount);
-          info.textContent = 'Base Stamina +' + passiveBonus + ' next round';
+          info.textContent = passiveBonus;
         } else {
           info.textContent = '';
         }
@@ -1405,7 +1418,7 @@
         } else {
           const p = computeAutoWaterProbability();
           const pct = Math.round(p*100);
-          chanceEl.textContent = "Auto Water chance: " + pct;
+          chanceEl.textContent = pct;
         }
       }
 
@@ -1431,118 +1444,105 @@
 <body>
   <main class="ui">
     <div class="ui-grid">
-      <div class="section-header">
+      <div class="header">
         <div>
           <div class="title">Loyly Game</div>
-          <div class="subtitle">Version 0.0.5</div>
+          <div class="subtitle">Version 0.0.6</div>
         </div>
+        <ul>
+          <strong>How to play</strong>
+          <li>Go in the sauna and try to outlast all other NPCs.</li>
+          <li>Remember to exit the sauna before your stamina runs out or you will faint!</li>
+          <li>Outlasting other NPCs will give you money which you can spend on items in the store.</li>
+          <li>Smacking NPCs with a birch whisk will lower their stamina and is free!</li>
+        <ul>
       </div>
-      <div class="section-header">
-        <h2>User</h2>
-        <div>Coins: <strong id="coins">0</strong></div>
-        <strong>Stamina:</strong>
-        <span id="user-value"></span>
-        <span class="tag" id="speed-tag"></span>
+      <div class="header">
+        <button class="button" id="action-btn">Water <span id="inv-WATER">0</span></button>
+        <button class="button" id="beer-btn">Beer<span id="inv-BEER">0</span></button>
+        <button class="button" id="wood-btn">Wood<span id="inv-WOOD">0</span></button>
+        <button class="button" id="plunge-btn">Plunge<span id="inv-PLUNGE">0</span></button>
+        <button class="button" id="xray-btn">Xray<span id="inv-XRAY">0</span></button>
+        <button class="button" id="hat-btn">Hat<span id="inv-HAT">0</span></button>
+        <button class="button" id="icecream-btn">Ice Cream<span id="inv-ICE_CREAM">0</span></button>
+      </div>
+      <div class="header">
+        <div id="npcs" class="stack"></div>
+      </div>
+      <section class="header">
+        <div class="stats">
+          <div class="stat-row">
+            <div class="stat-label">Base Stamina</div>
+            <div class="stat-value" id="run-info"></div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-label">Water Chance</div>
+            <div class="stat-value" id="auto-water-chance"></div>
+          </div>
+          <div class="stat-row">
+            <div class="stat-label">Effects</div>
+            <div class="stat-value" id="effect-tags"></div>
+          </div>
+        </div>
+        <h2>You</h2>
         <div class="bar-container">
           <div id="user-bar" class="bar"></div>
         </div>
+        <span id="user-value"></span>
+        <span class="tag" id="speed-tag"></span>
+        <div id="time-up" class="muted"></div>
+      </section>
+      <div class="header">
+        <button class="button" id="go-btn">Go In</button>
+        <button class="button" id="exit-btn">Exit</button>
+        <button class="button" id="reset-btn">Reset</button>
       </div>
-      <div class="section-header">
-        <span id="effect-tags" class="tag"></span>
-        <span id="run-info" class="tag"></span>
-        <span id="auto-water-chance" class="tag"></span>
-      </div>
-    </div>
-    <h3>Action</h3>
-    <button id="action-btn">Water</button>
-    <button id="beer-btn">Beer</button>
-    <button id="wood-btn">Wood</button>
-    <button id="icecream-btn">Ice Cream</button>
-    <button id="plunge-btn">Plunge</button>
-    <button id="xray-btn">Xray</button>
-    <button id="hat-btn">Hat</button>
-    <button id="reset-btn">Reset</button>
-  </div>
-  <div class="panel">
-    <h3>Store</h3>
-    <div class="controls">
-      <button id="buy-water" class="shop-btn">Buy Water</button>
-      <button id="buy-beer" class="shop-btn">Buy Beer</button>
-      <button id="buy-wood" class="shop-btn">Buy Wood</button>
-      <button id="buy-icecream" class="shop-btn">Buy Ice Cream</button>
-      <button id="buy-hat" class="shop-btn">Buy Hat</button>
-      <button id="buy-plunge" class="shop-btn">Buy Plunge</button>
-      <button id="buy-xray" class="shop-btn">Buy Xray</button>
-    </div>
-    <h3>Inventory</h3>
-    <div class="row tag">
-      Water: <span id="inv-WATER">0</span>
-      Beer: <span id="inv-BEER">0</span>
-      Wood: <span id="inv-WOOD">0</span>
-      Ice Cream: <span id="inv-ICE_CREAM">0</span>
-      Plunge: <span id="inv-PLUNGE">0</span>
-      Xray: <span id="inv-XRAY">0</span>
-      Hat: <span id="inv-HAT">0</span>
-    </div>
-    <h3>Play Game</h3>
-    <div class="controls">
-      <button id="go-btn">Go In</button>
-      <button id="exit-btn">Exit</button>
-    </div>
-    <div id="time-up" class="muted"></div>
-  </div>
-  <div id="npcs" class="stack"></div>
-
-  <div class="panel small">
-    <strong>How to play:</strong>
-    <ul>
-      <li>Go in the sauna and try to outlast all other NPCs.</li>
-      <li>Remember to exit the sauna before your stamina runs out or you will faint!</li>
-      <li>Outlasting other NPCs will give you money which you can spend on items in the store.</li>
-      <li>Smacking NPCs with a birch whisk will lower their stamina and is free!</li>
+    <h3>Markka</h3>
+    <h3 id="coins"></h3>
+    <div class="header">
       <table>
         <tr>
-          <th>Item</th>
-          <th>Price</th>
+          <th>Cost</th>
+          <th></th>
           <th>Effect</th>
         </tr>
         <tr>
-          <td>Water</td>
           <th>Free</th>
+          <td><button class="sbutton" id="buy-water" class="shop-btn">Buy Water</button></td>
           <td>Throw water on the hot coals, everyone in the sauna takes a random amount of damage</td>
         </tr>
         <tr>
-          <td>Beer</td>
           <th>5</th>
+          <td><button class="sbutton" id="buy-beer" class="shop-btn">Buy Beer</button></td>
           <td>Drink beer to make you numb and lower your stamina drain rate</td>
         </tr>
         <tr>
-          <td>Wood</td>
           <th>Free</th>
+          <td><button class="sbutton" id="buy-wood" class="shop-btn">Buy Wood</button></td>
           <td>Add wood to the stove increasing the temperaturue in the sauna, increases stamina drain rate for all</td>
         </tr>
         <tr>
-          <td>Ice Cream</td>
           <th>5</th>
+          <td><button class="sbutton" id="buy-icecream" class="shop-btn">Buy Ice Cream</button></td>
           <td>Cold treat in the sauna to restore your stamina</td>
         </tr>
         <tr>
-          <td>Hat</td>
           <th>10</th>
+          <td><button class="sbutton" id="buy-hat" class="shop-btn">Buy Hat</button></td>
           <td>Wear a proper sauna hat, you take less damage when throwing water on the stones</td>
         </tr>
         <tr>
-          <td>Plunge</td>
           <th>2</th>
+          <td><button class="sbutton" id="buy-plunge" class="shop-btn">Buy Plunge</button></td>
           <td>Take a cold plunge before entering the sauna, increases your stamina before entering the sauna</td>
         </tr>
         <tr>
-          <td>Xray</td>
           <th>5</th>
+          <td><button class="sbutton" id="buy-xray" class="shop-btn">Buy Xray</button></td>
           <td>Allows you to seee the remaining stamina of other NPCs</td>
         </tr>
       </table>
-    </ul>
+    </div>
   </div>
 </body>
 </html>
